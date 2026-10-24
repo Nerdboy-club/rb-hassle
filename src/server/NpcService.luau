@@ -726,6 +726,50 @@ function NpcService.animate(actor: Actor, dt: number, now: number)
 	RigBuilder.place(actor.model, actor.position, actor.position.Y, actor.facing, actor.scale, swing)
 end
 
+-- вывеска над головой: чем занимается житель (видна с 60 студов)
+local ROLE_TAGS: { [string]: { text: string, color: Color3 } } = {
+	eta = { text = "Гейм-мастер входа", color = Color3.fromRGB(255, 160, 200) },
+	elena = { text = "Выход из игры", color = Color3.fromRGB(150, 200, 255) },
+	portmaster = { text = "Билеты", color = Color3.fromRGB(150, 200, 255) },
+	razor = { text = "Советы охотника", color = Color3.fromRGB(255, 190, 120) },
+	casino = { text = "Казино", color = Color3.fromRGB(255, 100, 120) },
+	finalquiz = { text = "Финальная викторина", color = Color3.fromRGB(255, 230, 140) },
+	ging = { text = "Загадочный охотник", color = Color3.fromRGB(150, 230, 170) },
+	catdiner = { text = "Закусочная", color = Color3.fromRGB(255, 220, 130) },
+	host = { text = "Конкурс", color = Color3.fromRGB(255, 200, 110) },
+	goldgirl = { text = "Задание", color = Color3.fromRGB(255, 225, 110) },
+	goldguard = { text = "Страж", color = Color3.fromRGB(200, 200, 215) },
+	beach = { text = "Задание", color = Color3.fromRGB(255, 225, 110) },
+	villager = { text = "Нужно лекарство", color = Color3.fromRGB(255, 140, 140) },
+}
+
+local function addRoleTag(model: Model, npc: Npcs.Npc, scale: number)
+	local info = ROLE_TAGS[npc.role]
+	if npc.role == "shop" then
+		info = { text = npc.shop == "spells" and "Заклинания" or "Лавка", color = Color3.fromRGB(160, 230, 180) }
+	end
+	local head = model:FindFirstChild("Head")
+	if not info or not head then
+		return
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "RoleTag"
+	gui.Size = UDim2.fromOffset(150, 20)
+	gui.StudsOffset = Vector3.new(0, 4.2 * scale, 0) -- выше стандартной подписи имени
+	gui.MaxDistance = 60
+	gui.Adornee = head
+	gui.Parent = head
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextColor3 = info.color
+	label.TextStrokeTransparency = 0.4
+	label.Text = info.text
+	label.Parent = gui
+end
+
 function NpcService.start()
 	local folder = Instance.new("Folder")
 	folder.Name = "Npcs"
@@ -739,6 +783,7 @@ function NpcService.start()
 		local lookAt = Vector3.new(zone.x, position.Y, zone.z + 60)
 		RigBuilder.place(model, position, position.Y, lookAt, scale)
 		model.Parent = folder
+		addRoleTag(model, npc, scale)
 		npcHome[npcId] = position
 		table.insert(actors, {
 			model = model,
