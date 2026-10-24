@@ -668,13 +668,18 @@ function NpcService.animate(actor: Actor, dt: number, now: number)
 			local flat = Vector3.new(direction.X, 0, direction.Z)
 			if flat.Magnitude > 0.01 then
 				local unit = flat.Unit
-				local nextX = actor.position.X + unit.X * WALK_SPEED * dt
-				local nextZ = actor.position.Z + unit.Z * WALK_SPEED * dt
-				actor.position = Vector3.new(nextX, WorldBuilder.terrainY(nextX, nextZ), nextZ)
-				if not watching then
-					actor.facing = actor.position + unit * 10
+				if WorldBuilder.pathBlocked(actor.position, unit, WALK_SPEED * dt + 2.5) then
+					actor.goal = nil -- упёрлись в постройку: выбираем другую цель
+					actor.waitUntil = now + 1
+				else
+					local nextX = actor.position.X + unit.X * WALK_SPEED * dt
+					local nextZ = actor.position.Z + unit.Z * WALK_SPEED * dt
+					actor.position = Vector3.new(nextX, WorldBuilder.terrainY(nextX, nextZ), nextZ)
+					if not watching then
+						actor.facing = actor.position + unit * 10
+					end
+					moving = true
 				end
-				moving = true
 			end
 		elseif now >= actor.waitUntil then
 			local angle = rng:NextNumber(0, math.pi * 2)

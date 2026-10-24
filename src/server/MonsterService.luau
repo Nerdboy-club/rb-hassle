@@ -367,22 +367,6 @@ local function nearestPlayer(from: Vector3, maxDistance: number, respectFactor: 
 	return best, bestDistance
 end
 
-local blockParams: RaycastParams?
-
---- Мешают ли постройки (дома, деревья, камни) на пути: короткий луч на высоте груди.
-local function blocked(from: Vector3, unit: Vector3, length: number): boolean
-	if not blockParams then
-		local decor = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Decor")
-		if not decor then
-			return false
-		end
-		blockParams = RaycastParams.new()
-		blockParams.FilterType = Enum.RaycastFilterType.Include
-		blockParams.FilterDescendantsInstances = { decor }
-	end
-	return workspace:Raycast(from + Vector3.new(0, 2.5, 0), unit * length, blockParams) ~= nil
-end
-
 local function step(mon: Mon, direction: Vector3, speed: number, dt: number)
 	if direction.Magnitude < 0.01 then
 		return
@@ -403,7 +387,7 @@ local function step(mon: Mon, direction: Vector3, speed: number, dt: number)
 		local candidatePos = mon.position + candidate * distance
 		local height = groundAt(candidatePos.X, candidatePos.Z)
 		-- в воду не заходим, на отвесные уступы не запрыгиваем
-		if height >= -0.8 and height - mon.position.Y <= 2.5 and not blocked(mon.position, candidate, distance + 3) then
+		if height >= -0.8 and height - mon.position.Y <= 2.5 and not WorldBuilder.pathBlocked(mon.position, candidate, distance + 3) then
 			unit, nextPos, found = candidate, candidatePos, true
 			break
 		end

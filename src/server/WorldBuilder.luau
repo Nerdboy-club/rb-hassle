@@ -88,6 +88,18 @@ function WorldBuilder.terrainY(x: number, z: number): number
 	return hit and hit.Position.Y or 0
 end
 
+local decorOnly: RaycastParams?
+
+--- Перегорожен ли путь постройками (дома, деревья, камни): короткий луч на высоте груди от точки `from`.
+function WorldBuilder.pathBlocked(from: Vector3, unit: Vector3, length: number): boolean
+	if not decorOnly then
+		decorOnly = RaycastParams.new()
+		decorOnly.FilterType = Enum.RaycastFilterType.Include
+		decorOnly.FilterDescendantsInstances = { decor }
+	end
+	return workspace:Raycast(from + V3(0, 2.5, 0), unit * length, decorOnly) ~= nil
+end
+
 --- Свободна ли точка от построек (для появления предметов).
 function WorldBuilder.isFree(point: Vector3, radius: number): boolean
 	local overlap = OverlapParams.new()
