@@ -466,6 +466,91 @@ local function scatter()
 	end
 end
 
+-- ===================== тропы и указатели =====================
+
+-- пары городов, между которыми проложены тропы цвета земли
+local TRAILS = {
+	{ "Shiso", "Antokiba" },
+	{ "Antokiba", "Rubicuta" },
+	{ "Antokiba", "Masadora" },
+	{ "Antokiba", "Port" },
+	{ "Antokiba", "Limeiro" },
+	{ "Rubicuta", "Aiai" },
+	{ "Aiai", "Soufrabi" },
+	{ "Aiai", "Bunzen" },
+	{ "Masadora", "Dorias" },
+	{ "Dorias", "Bandits" },
+	{ "Bandits", "Limeiro" },
+	{ "Limeiro", "Bunzen" },
+}
+
+local function shortName(zoneKey: string): string
+	local name = Zones[zoneKey].name
+	local cut = string.find(name, " — ", 1, true)
+	return cut and string.sub(name, 1, cut - 1) or name
+end
+
+--- Отрезок тропы: траву красим землёй (ландшафт, без деталей — ничего не нагружает).
+local function paintTrail(from: Vector3, to: Vector3)
+	local length = (to - from).Magnitude
+	local steps = math.max(1, math.ceil(length / 8))
+	for index = 0, steps do
+		local p = from:Lerp(to, index / steps)
+		local region = Region3.new(V3(p.X - 5, -8, p.Z - 5), V3(p.X + 5, 4, p.Z + 5)):ExpandToGrid(4)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.Grass, Enum.Material.Ground)
+		terrain:ReplaceMaterial(region, 4, Enum.Material.LeafyGrass, Enum.Material.Ground)
+	end
+end
+
+--- Указатель у дороги: столб и табличка лицом к городу, откуда идёт путник.
+local function signpost(zoneKey: string, otherKey: string)
+	local zone, other = Zones[zoneKey], Zones[otherKey]
+	local direction = V3(other.x - zone.x, 0, other.z - zone.z)
+	local distance = direction.Magnitude
+	direction = direction.Unit
+	local side = V3(-direction.Z, 0, direction.X)
+	local radius = zone.r * 0.95 + 10
+	local x = zone.x + direction.X * radius + side.X * 9
+	local z = zone.z + direction.Z * radius + side.Z * 9
+	local base = V3(x, WorldBuilder.terrainY(x, z), z)
+	column(decor, "SignPost", base, 8, 0.8, WOOD, Enum.Material.Wood)
+	local board = newPart(
+		decor,
+		"SignBoard",
+		V3(8, 3, 0.5),
+		CFrame.lookAt(base + V3(0, 7, 0), base + V3(0, 7, 0) - direction),
+		C3(150, 112, 70),
+		Enum.Material.WoodPlanks
+	)
+	board.CanCollide = false
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.MaxDistance = 90
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = C3(45, 28, 12)
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.Text = ("→ %s\n%d м"):format(shortName(otherKey), math.floor(distance))
+	label.Parent = gui
+end
+
+local function buildTrails()
+	for _, pair in TRAILS do
+		local a, b = Zones[pair[1]], Zones[pair[2]]
+		local direction = V3(b.x - a.x, 0, b.z - a.z).Unit
+		local plazaA = math.min(26, a.r * 0.28)
+		local plazaB = math.min(26, b.r * 0.28)
+		paintTrail(V3(a.x, 0, a.z) + direction * plazaA, V3(b.x, 0, b.z) - direction * plazaB)
+		signpost(pair[1], pair[2])
+		signpost(pair[2], pair[1])
+	end
+end
+
 -- ===================== реальный мир (лобби) =====================
 
 local function buildLobby()
@@ -596,6 +681,7 @@ function WorldBuilder.build()
 	landmarkBandits()
 	landmarkRuins()
 	scatter()
+	buildTrails()
 	buildLobby()
 end
 
