@@ -50,6 +50,8 @@ type Mon = {
 
 local active: { Mon } = {}
 local byPart: { [Instance]: Mon } = {}
+-- подсказка новичку при первом ударе (слабая таблица: выходящие игроки не копятся)
+local tutored: { [Player]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local folder: Folder
 local rng = Random.new()
 local nextId = 0
@@ -248,6 +250,9 @@ local function capture(mon: Mon, player: Player)
 
 	local profile = PlayerData.get(player)
 	if profile then
+		if not profile.flags.firstMonster then
+			PlayerData.notify(player, "Первая победа! Карта у вас в руке (слева сверху): нажмите на неё, чтобы вложить в книгу.", "good")
+		end
 		profile.flags.firstMonster = true
 		local reward = math.floor(def.hp * 0.5)
 		profile.yen += reward
@@ -293,6 +298,14 @@ function MonsterService.hit(player: Player, part: BasePart, baseDamage: number):
 	end
 	local def = mon.def
 	local now = os.clock()
+
+	if not tutored[player] then
+		tutored[player] = true
+		local profile = PlayerData.get(player)
+		if profile and not profile.flags.firstMonster then
+			PlayerData.notify(player, "Бейте монстра, пока не упадёт полоска над ним. Если больно — включите Тен (T). Награда — карта.", "info")
+		end
+	end
 
 	-- жук-олень: нужна серия сильных ударов по дереву
 	if def.behavior == "tree" then
