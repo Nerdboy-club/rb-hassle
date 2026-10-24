@@ -14,6 +14,7 @@ local QuizUI = require(script.Parent.QuizUI)
 local ShopUI = require(script.Parent.ShopUI)
 local State = require(script.Parent.State)
 local TouchControls = require(script.Parent.TouchControls)
+local Ambient = require(script.Parent.Ambient)
 
 local player = Players.LocalPlayer
 
@@ -34,6 +35,7 @@ DialogUI.create(gui)
 local shop = ShopUI.create(gui)
 QuizUI.create(gui)
 Effects.start()
+pcall(Ambient.start)
 
 -- заставка при входе
 do

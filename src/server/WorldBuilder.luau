@@ -1,6 +1,7 @@
 -- Остров целиком собирается кодом: ландшафт Terrain + простые детали. Ничего вручную в Studio делать не нужно.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
+local CollectionService = game:GetService("CollectionService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
@@ -169,7 +170,7 @@ local function tree(position: Vector3, scale: number, dead: boolean?)
 	local height = 14 * scale
 	column(decor, "Trunk", position, height, 2.2 * scale, WOOD, Enum.Material.Wood)
 	if not dead then
-		newPart(
+		local crown = newPart(
 			decor,
 			"Crown",
 			V3(11, 9, 11) * scale,
@@ -178,6 +179,7 @@ local function tree(position: Vector3, scale: number, dead: boolean?)
 			Enum.Material.Grass,
 			Enum.PartType.Ball
 		)
+		CollectionService:AddTag(crown, "Sway") -- клиент колышет ближние кроны (Ambient.luau)
 	end
 end
 
@@ -344,6 +346,34 @@ local function landmarkMasadora()
 	end
 end
 
+--- Лодка у причала. Корпус помечен тегом Bob: клиент слегка качает ближние лодки (Ambient.luau).
+local function rowboat(position: Vector3, yaw: number, hull: Color3)
+	local frame = CFrame.new(position) * CFrame.Angles(0, yaw, 0)
+	local body = newPart(decor, "BoatHull", V3(4, 1.4, 9), frame, hull, Enum.Material.Wood)
+	CollectionService:AddTag(body, "Bob")
+	body:SetAttribute("BobPhase", rng:NextNumber(0, 6.28))
+	local inner = newPart(decor, "BoatInner", V3(3, 0.3, 7.6), frame * CFrame.new(0, 0.6, 0), hull:Lerp(C3(255, 230, 190), 0.45), Enum.Material.WoodPlanks)
+	inner.CanCollide = false
+	newPart(decor, "BoatSeat", V3(3.2, 0.3, 0.9), frame * CFrame.new(0, 0.95, -1.2), WOOD, Enum.Material.Wood).CanCollide = false
+	newPart(decor, "BoatOar", V3(0.25, 0.25, 6), frame * CFrame.new(2.1, 1.2, 0.5) * CFrame.Angles(0, 0.35, 0.25), C3(190, 160, 110), Enum.Material.Wood).CanCollide = false
+	return body
+end
+
+--- Лодки по бокам причала зоны (направление — от центра острова к городу).
+local function moorBoats(zoneKey: string, count: number)
+	local zone = Zones[zoneKey]
+	local direction = V3(zone.x, 0, zone.z).Unit
+	local side = V3(-direction.Z, 0, direction.X)
+	local yaw = math.atan2(-direction.X, -direction.Z)
+	local colors = { C3(150, 90, 60), C3(70, 100, 150), C3(180, 150, 80), C3(120, 70, 80) }
+	for index = 1, count do
+		local along = 936 + (index % 2) * 12
+		local lateral = (index % 2 == 0 and 1 or -1) * (9 + math.floor(index / 2) * 7)
+		local pos = direction * along + side * lateral
+		rowboat(V3(pos.X, -1.4, pos.Z), yaw, colors[(index - 1) % #colors + 1])
+	end
+end
+
 local function landmarkSoufrabi()
 	local zone = Zones.Soufrabi
 	local lighthouse = WorldBuilder.zonePoint("Soufrabi", 40, -40)
@@ -356,6 +386,7 @@ local function landmarkSoufrabi()
 		local pos = direction * radius
 		newPart(decor, "Plank", V3(8, 0.6, 5), CFrame.new(pos.X, 0.6, pos.Z) * CFrame.Angles(0, math.atan2(-direction.X, -direction.Z), 0), WOOD, Enum.Material.WoodPlanks)
 	end
+	moorBoats("Soufrabi", 4)
 	local shipPos = direction * 980
 	newPart(decor, "ShipHull", V3(14, 6, 34), CFrame.new(shipPos.X, 0, shipPos.Z) * CFrame.Angles(0, math.atan2(-direction.X, -direction.Z) + math.pi / 2, 0), C3(90, 60, 40), Enum.Material.Wood)
 	column(decor, "Mast", V3(shipPos.X, 3, shipPos.Z), 26, 1.2, WOOD, Enum.Material.Wood)
@@ -392,9 +423,10 @@ local function landmarkPort()
 	ring.Transparency = 0.35
 	ring.CanCollide = false
 	sign(decor, "Башня выхода из игры", tower + V3(0, 94, 0), C3(160, 220, 255))
+	moorBoats("Port", 3)
 	-- причал
 	local direction = V3(zone.x, 0, zone.z).Unit
-	for step = 0, 14 do
+	for step = 0, 17 do
 		local pos = direction * (840 + step * 5)
 		newPart(decor, "Plank", V3(8, 0.6, 5), CFrame.new(pos.X, 0.6, pos.Z) * CFrame.Angles(0, math.atan2(-direction.X, -direction.Z), 0), WOOD, Enum.Material.WoodPlanks)
 	end
