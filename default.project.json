@@ -17,6 +17,12 @@
         "Client": { "$path": "src/client" }
       }
     },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    },
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
