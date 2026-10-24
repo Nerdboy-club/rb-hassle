@@ -481,6 +481,18 @@ local function buildLobby()
 	newPart(lobby, "Ceiling", V3(70, 2, 70), CFrame.new(origin + V3(0, 23, 0)), C3(235, 235, 240), Enum.Material.SmoothPlastic)
 	local light = newPart(lobby, "Light", V3(30, 0.4, 30), CFrame.new(origin + V3(0, 21.8, 0)), C3(255, 250, 235), Enum.Material.Neon)
 	light.CanCollide = false
+	-- крыша закрывает солнце: освещаем комнату изнутри
+	for _, offset in { V3(0, -4, 0), V3(-20, -4, -20), V3(20, -4, 20) } do
+		local lamp = Instance.new("PointLight")
+		lamp.Brightness = 1.6
+		lamp.Range = 60
+		lamp.Color = C3(255, 246, 228)
+		local holder = newPart(lobby, "LampPoint", V3(0.4, 0.4, 0.4), CFrame.new(origin + V3(0, 20, 0) + offset), C3(255, 250, 235), Enum.Material.Neon)
+		holder.CanCollide = false
+		holder.CanQuery = false
+		holder.Transparency = 1
+		lamp.Parent = holder
+	end
 
 	local console = newPart(lobby, "JoyStation", V3(10, 7, 6), CFrame.new(origin + V3(0, 4.5, -22)), C3(40, 44, 60), Enum.Material.Metal)
 	local screen = newPart(lobby, "Screen", V3(8, 4, 0.4), CFrame.new(origin + V3(0, 6, -18.8)), C3(80, 220, 140), Enum.Material.Neon)
