@@ -305,8 +305,13 @@ function SpellService.start()
 			local range = Status.get(player, "magnet")
 			local part = root(player)
 			if range and part then
-				for _, node in ItemService.nodesNear(part.Position, range) do
-					ItemService.pickup(player, node :: Part)
+				-- руки заняты — не пытаемся (иначе каждые полсекунды сыпались бы уведомления)
+				if not Hand.isFull(player) then
+					for _, node in ItemService.nodesNear(part.Position, range) do
+						if not ItemService.pickup(player, node :: Part) then
+							break
+						end
+					end
 				end
 			end
 		end
