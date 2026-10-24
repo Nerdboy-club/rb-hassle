@@ -189,6 +189,7 @@ function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
 			BackgroundColor3 = Theme.bg,
 			TextSize = 14,
 			TextYAlignment = Enum.TextYAlignment.Center,
+			AutomaticSize = Enum.AutomaticSize.Y,
 		})
 		Theme.corner(toast, 10)
 		Theme.stroke(toast, color, 2)
