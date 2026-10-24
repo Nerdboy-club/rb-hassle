@@ -142,12 +142,12 @@ local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Fra
 	return model, root, fill
 end
 
-local function place(mon: Mon)
+local function place(mon: Mon, lift: number?)
 	local ground = groundAt(mon.position.X, mon.position.Z)
 	mon.position = Vector3.new(mon.position.X, ground, mon.position.Z)
 	local faint = os.clock() < mon.faintUntil
 	local rollAngle = faint and math.pi / 2 or 0
-	mon.model:PivotTo(CFrame.new(mon.position) * CFrame.Angles(0, mon.heading, rollAngle))
+	mon.model:PivotTo(CFrame.new(mon.position + Vector3.new(0, lift or 0, 0)) * CFrame.Angles(0, mon.heading, rollAngle))
 end
 
 local function register(mon: Mon)
@@ -407,7 +407,7 @@ local function step(mon: Mon, direction: Vector3, speed: number, dt: number)
 	end
 	mon.position = nextPos
 	mon.heading = math.atan2(-unit.X, -unit.Z)
-	place(mon)
+	place(mon, math.abs(math.sin(os.clock() * 9 + mon.heading)) * 0.45) -- «шаг»: лёгкое подпрыгивание при ходьбе
 end
 
 local function wander(mon: Mon, dt: number, now: number)
