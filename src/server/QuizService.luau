@@ -230,7 +230,7 @@ local function runContest()
 		local winner: Player? = nil
 		local best = math.huge
 		for player, result in contest.results do
-			if result.ok and result.elapsed < best then
+			if result.ok and player.Parent and result.elapsed < best then
 				winner, best = player, result.elapsed
 			end
 		end
