@@ -12,6 +12,7 @@ local Util = require(Shared.Util)
 
 local State = require(script.Parent.State)
 local Theme = require(script.Parent.Theme)
+local Guide = require(script.Parent.Guide)
 local TouchControls = require(script.Parent.TouchControls)
 
 local Hud = {}
@@ -120,16 +121,23 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 	Theme.padding(goals, 8)
 	local goalsLabel = Theme.label(goals, "", UDim2.fromScale(1, 1), nil, { TextSize = 13 })
 
+	local guide = Guide.create(gui)
+
 	local OBJECTIVES = {
-		{ text = "Поговорите с Этой у Дерева Шисо (E)", done = function(d) return State.hasFlag("metEta") end },
+		{ text = "Поговорите с Этой у Дерева Шисо (E)", done = function(d) return State.hasFlag("metEta") end, target = function() return Guide.npcPosition("eta") end, title = "Эта" },
 		{ text = "Подберите предмет (E) и вложите карту в книгу за минуту (B)", done = function(d) return #d.slots >= 2 end },
-		{ text = "Победите монстра: бейте его (ЛКМ), и выпадет карта", done = function(d) return State.hasFlag("firstMonster") end },
+		{ text = "Победите монстра: бейте его (ЛКМ), и выпадет карта", done = function(d) return State.hasFlag("firstMonster") end, target = function() return Guide.nearestMonster(State.playerPosition()) end, title = "Монстр" },
 		{ text = "Соберите 10 карт", done = function(d) return #d.slots >= 10 end },
-		{ text = "Купите заклинание в Масадоре", done = function(d) return State.hasFlag("boughtSpell") end },
+		{ text = "Купите заклинание в Масадоре", done = function(d) return State.hasFlag("boughtSpell") end, target = function() return Guide.npcPosition("shop_spells") end, title = "Магазин спеллов" },
 		{ text = "Соберите 50 карт", done = function(d) return #d.slots >= 50 end },
-		{ text = "Вылечите жителей деревни горных бандитов («Лекарство» — в Wig & Pen)", done = function(d) return State.hasFlag("bandits") end },
-		{ text = "Соберите 99 карт и пройдите викторину Двана в Лимейро", done = function(d) return d.won end },
-		{ text = "Купите или выбейте билет в порту и выйдите через башню Елены", done = function(d) return false end },
+		{ text = "Вылечите жителей деревни горных бандитов («Лекарство» — в Wig & Pen)", done = function(d) return State.hasFlag("bandits") end, target = function()
+			if State.owns(201) then
+				return Guide.zonePosition("Bandits")
+			end
+			return Guide.npcPosition("shop_wigpen")
+		end, title = "Лекарство: Wig & Pen / деревня" },
+		{ text = "Соберите 99 карт и пройдите викторину Двана в Лимейро", done = function(d) return d.won end, target = function() return Guide.npcPosition("dwan") end, title = "Дван (Лимейро)" },
+		{ text = "Купите или выбейте билет в порту и выйдите через башню Елены", done = function(d) return false end, target = function() return Guide.npcPosition("elena") end, title = "Елена (порт)" },
 	}
 
 	local function refreshGoals()
@@ -151,6 +159,19 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 			end
 		end
 		goalsLabel.Text = table.concat(lines, "\n")
+		-- стрелка ведёт к первой невыполненной цели, у которой есть место
+		local aim = nil
+		for _, objective in OBJECTIVES do
+			if not objective.done(data) then
+				aim = objective
+				break
+			end
+		end
+		if aim and aim.target then
+			guide.set(aim.target, aim.title)
+		else
+			guide.set(nil)
+		end
 	end
 
 	-- ===== экран победы =====

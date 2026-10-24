@@ -44,6 +44,13 @@ function State.owns(id: number): boolean
 	return false
 end
 
+--- Позиция персонажа игрока (или нулевой вектор до появления).
+function State.playerPosition(): Vector3
+	local character = game:GetService("Players").LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	return root and (root :: BasePart).Position or Vector3.zero
+end
+
 function State.hasFlag(name: string): boolean
 	return State.data ~= nil and table.find(State.data.flags or {}, name) ~= nil
 end
