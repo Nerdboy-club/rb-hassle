@@ -194,6 +194,16 @@ function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
 		Theme.corner(toast, 10)
 		Theme.stroke(toast, color, 2)
 		Theme.padding(toast, 8)
+		-- не больше четырёх одновременно: старые убираем сразу
+		local shown = {}
+		for _, child in toasts:GetChildren() do
+			if child:IsA("TextLabel") then
+				table.insert(shown, child)
+			end
+		end
+		while #shown > 4 do
+			table.remove(shown, 1):Destroy()
+		end
 		task.delay(5, function()
 			if toast.Parent then
 				local tween = TweenService:Create(toast, TweenInfo.new(0.5), { BackgroundTransparency = 1, TextTransparency = 1 })
