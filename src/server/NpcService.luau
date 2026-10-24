@@ -280,14 +280,15 @@ local function roulette(ctx: Context, bet: number)
 	ctx.profile.yen -= bet
 	local roll = rng:NextInteger(1, 100) + (Status.has(ctx.player, "fortune") and 8 or 0)
 	local text
-	if roll <= 55 then
+	-- матожидание ставки слегка отрицательное (≈ -5%), иначе рулетка — бесконечный источник йен
+	if roll <= 64 then
 		text = ("Выпало красное. Вы проиграли %s."):format(Util.formatYen(bet))
-	elseif roll <= 85 then
+	elseif roll <= 91 then
 		ctx.profile.yen += bet * 2
 		text = ("Победа! Выигрыш %s."):format(Util.formatYen(bet * 2))
-	elseif roll <= 97 then
-		ctx.profile.yen += bet * 4
-		text = ("Крупный выигрыш: %s!"):format(Util.formatYen(bet * 4))
+	elseif roll <= 98 then
+		ctx.profile.yen += bet * 3
+		text = ("Крупный выигрыш: %s!"):format(Util.formatYen(bet * 3))
 	else
 		local prize = casinoPrize(ctx.profile)
 		if prize and Binder.grant(ctx.player, prize) then
@@ -329,11 +330,11 @@ roles.casino = {
 			if duelWins(ctx.player, 0.3) then
 				local ok = not ctx.profile.slots[ids.KING_CARD] and Binder.grant(ctx.player, ids.KING_CARD)
 				if not ok then
-					ctx.profile.yen += 5000
+					ctx.profile.yen += 2500
 				end
 				PlayerData.push(ctx.player)
 				ctx.say(
-					ok and "Вы меня обыграли. Держите карту «Начинающий игрок»." or "Вы меня обыграли. Карта у вас уже есть — вот 5000 йен.",
+					ok and "Вы меня обыграли. Держите карту «Начинающий игрок»." or "Вы меня обыграли. Карта у вас уже есть — вот 2500 йен.",
 					{ { id = "again", label = "Ещё" }, { id = "bye", label = "Хватит" } }
 				)
 			else
