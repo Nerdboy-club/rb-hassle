@@ -173,6 +173,12 @@ function ShopUI.create(gui: ScreenGui)
 	closeButton.Activated:Connect(close)
 
 	Remotes.ShopOpen.OnClientEvent:Connect(function(data)
+		if data.close then
+			-- сервер закрыл лавку (игрок отошёл)
+			currentShop = nil
+			root.Visible = false
+			return
+		end
 		root.Visible = true
 		render(data)
 	end)

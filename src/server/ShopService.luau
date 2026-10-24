@@ -230,6 +230,7 @@ local function handle(player: Player, data: any)
 		if not root or not origin or ((root :: BasePart).Position - origin).Magnitude > MAX_SHOP_DISTANCE then
 			openShops[player] = nil
 			openAt[player] = nil
+			Remotes.ShopOpen:FireClient(player, { close = true })
 			PlayerData.notify(player, "Вы отошли от лавки — сделка отменена.", "warn")
 			return
 		end
