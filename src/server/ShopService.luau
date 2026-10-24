@@ -216,9 +216,19 @@ local function sellInfo(player: Player, profile: PlayerData.Profile)
 	PlayerData.notify(player, ("Слух: «%s» (ранг %s) — %s."):format(card.name, card.rank, where), "good")
 end
 
+local lastAction: { [Player]: number } = {}
+
 local function handle(player: Player, data: any)
 	if type(data) ~= "table" or type(data.shopId) ~= "string" or openShops[player] ~= data.shopId then
 		return
+	end
+	-- не чаще раза в 0.15 с: щелчки очередью не раздувают трафик обновлений окна лавки
+	local now = os.clock()
+	if data.action ~= "close" then
+		if now - (lastAction[player] or 0) < 0.15 then
+			return
+		end
+		lastAction[player] = now
 	end
 	local profile = PlayerData.get(player)
 	if not profile or not profile.inGame then
@@ -259,6 +269,7 @@ function ShopService.start()
 	Players.PlayerRemoving:Connect(function(player)
 		openShops[player] = nil
 		openAt[player] = nil
+		lastAction[player] = nil
 	end)
 end
 
