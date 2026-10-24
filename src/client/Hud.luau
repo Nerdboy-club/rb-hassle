@@ -309,6 +309,8 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 
 	-- ===== периодические обновления: рука, эффекты, зона =====
 	local lastZone: string? = nil
+	local handButtons: { [number]: TextButton } = {}
+	local handStrokes: { [number]: UIStroke } = {}
 	local accumulator = 0
 	RunService.Heartbeat:Connect(function(dt)
 		accumulator += dt
@@ -317,31 +319,38 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 		end
 		accumulator = 0
 
-		-- рука
-		for _, child in handFrame:GetChildren() do
-			if child:IsA("TextButton") then
-				child:Destroy()
-			end
-		end
+		-- рука: кнопки не пересоздаём каждые полсекунды (нажатие не должно пропадать), а обновляем на месте
 		local data = State.data
+		local seen: { [number]: boolean } = {}
 		if data and State.phase ~= "lobby" then
-			for _, entry in data.hand do
+			for order, entry in data.hand do
 				local card = Cards.get(entry.id)
 				if card then
+					seen[entry.uid] = true
 					local left = State.handLeft(entry)
-					local button = Theme.button(
-						handFrame,
-						("%s %s · %d с — вложить"):format(Cards.ICONS[card.kind] or "🎴", card.name, math.ceil(left)),
-						UDim2.fromOffset(230, 28),
-						nil,
-						Ranks.color(card.rank):Lerp(Theme.bg, 0.55)
-					)
-					button.TextSize = 12
-					Theme.stroke(button, left < 15 and Theme.bad or Ranks.color(card.rank), 2)
-					button.Activated:Connect(function()
-						Remotes.BinderAction:FireServer({ action = "insert", uid = entry.uid })
-					end)
+					local text = ("%s %s · %d с — вложить"):format(Cards.ICONS[card.kind] or "🎴", card.name, math.ceil(left))
+					local button = handButtons[entry.uid]
+					if not button then
+						button = Theme.button(handFrame, text, UDim2.fromOffset(230, 28), nil, Ranks.color(card.rank):Lerp(Theme.bg, 0.55))
+						button.TextSize = 12
+						handStrokes[entry.uid] = Theme.stroke(button, Ranks.color(card.rank), 2)
+						local uid = entry.uid
+						button.Activated:Connect(function()
+							Remotes.BinderAction:FireServer({ action = "insert", uid = uid })
+						end)
+						handButtons[entry.uid] = button
+					end
+					button.Text = text
+					button.LayoutOrder = order
+					handStrokes[entry.uid].Color = left < 15 and Theme.bad or Ranks.color(card.rank)
 				end
+			end
+		end
+		for uid, button in handButtons do
+			if not seen[uid] then
+				button:Destroy()
+				handButtons[uid] = nil
+				handStrokes[uid] = nil
 			end
 		end
 
