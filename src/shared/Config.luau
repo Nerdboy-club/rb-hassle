@@ -10,7 +10,7 @@ return {
 
 	AttackRange = 14,
 	AttackCooldown = 0.5,
-	BaseDamage = 8,
+	BaseDamage = 12,
 
 	RespawnSeconds = 3,
 	AutosaveSeconds = 60,
