@@ -26,7 +26,7 @@ local SHOPS: { [string]: Shop } = {
 }
 
 -- цена продажи по рангу, если карта в лавках не продаётся
-local RANK_VALUE = { SS = 50000, S = 30000, A = 15000, B = 8000, C = 3000, D = 1200, E = 600, F = 250, G = 100, H = 50 }
+local RANK_VALUE = { SS = 8000, S = 5000, A = 3000, B = 2000, C = 1000, D = 500, E = 250, F = 120, G = 60, H = 30 }
 
 local openShops: { [Player]: string } = {}
 local openAt: { [Player]: Vector3 } = {}

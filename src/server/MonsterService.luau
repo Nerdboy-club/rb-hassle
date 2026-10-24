@@ -254,7 +254,7 @@ local function capture(mon: Mon, player: Player)
 			PlayerData.notify(player, "Первая победа! Карта у вас в руке (слева сверху): нажмите на неё, чтобы вложить в книгу.", "good")
 		end
 		profile.flags.firstMonster = true
-		local reward = math.floor(def.hp * 0.5)
+		local reward = math.floor(def.hp * 1.5)
 		profile.yen += reward
 		if #drops > 0 then
 			local card = drops[1]

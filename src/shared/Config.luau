@@ -5,7 +5,7 @@ return {
 	FreeSlots = 45, -- свободные слоты
 	StartYen = 3000,
 
-	PickupRespawnSeconds = 45,
+	PickupRespawnSeconds = 75, -- дольше, чтобы предметы нельзя было быстро фармить на продажу
 	PickupHoldSeconds = 0.5,
 
 	AttackRange = 14,
