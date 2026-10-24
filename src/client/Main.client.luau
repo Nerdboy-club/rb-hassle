@@ -33,7 +33,7 @@ do
 			return
 		end
 		local size = camera.ViewportSize
-		uiScale.Scale = math.clamp(math.min(size.X / 1000, size.Y / 600), 0.55, 1)
+		uiScale.Scale = math.clamp(math.min(size.X / 1000, size.Y / 640), 0.5, 1)
 	end
 	fit()
 	local camera = workspace.CurrentCamera
