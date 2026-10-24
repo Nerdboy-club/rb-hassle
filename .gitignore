@@ -2,3 +2,5 @@
 *.rbxlx
 .DS_Store
 .claude/
+
+tools/check/.build/
