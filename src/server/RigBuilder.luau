@@ -1,6 +1,9 @@
 -- Простая модель человечка для NPC: собирается из частей, ничего из Toolbox не нужно.
 local RigBuilder = {}
 
+-- Знак размаха конечностей при ходьбе: руки и ноги качаются в противофазе.
+local LIMB_SIGN = { LeftArm = 1, RightArm = -1, LeftLeg = -1, RightLeg = 1 }
+
 local function block(name: string, size: Vector3, color: Color3, parent: Instance): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -61,10 +64,14 @@ function RigBuilder.build(displayName: string, shirt: Color3, skin: Color3?, sca
 end
 
 --- Поставить модель так, чтобы подошвы стояли на groundY, лицом в точку lookAt.
-function RigBuilder.place(model: Model, position: Vector3, groundY: number, lookAt: Vector3?, scale: number?)
+--- swing — размах рук и ног в радианах (ходьба); 0 или nil — стоит ровно.
+function RigBuilder.place(model: Model, position: Vector3, groundY: number, lookAt: Vector3?, scale: number?, swing: number?)
 	local factor = scale or 1
 	local center = Vector3.new(position.X, groundY + 3 * factor, position.Z)
 	local facing = lookAt and Vector3.new(lookAt.X, center.Y, lookAt.Z) or (center + Vector3.new(0, 0, -1))
+	if (facing - center).Magnitude < 0.05 then
+		facing = center + Vector3.new(0, 0, -1) -- смотреть некуда: вырожденный CFrame.lookAt дал бы NaN
+	end
 	local base = CFrame.lookAt(center, facing)
 	for _, part in model:GetChildren() do
 		if part:IsA("BasePart") then
@@ -73,7 +80,14 @@ function RigBuilder.place(model: Model, position: Vector3, groundY: number, look
 				part:GetAttribute("OffsetY") or 0,
 				part:GetAttribute("OffsetZ") or 0
 			)
-			part.CFrame = base * CFrame.new(offset)
+			local sign = LIMB_SIGN[part.Name]
+			if sign and swing and swing ~= 0 then
+				-- качаем вокруг плеча/бедра: верх конечности — точка опоры
+				local pivot = Vector3.new(0, factor, 0)
+				part.CFrame = base * CFrame.new(offset + pivot) * CFrame.Angles(swing * sign, 0, 0) * CFrame.new(-pivot)
+			else
+				part.CFrame = base * CFrame.new(offset)
+			end
 		end
 	end
 end

@@ -133,6 +133,14 @@ local function onPlayerAdded(player: Player)
 		task.spawn(onCharacter, player, player.Character)
 	end
 
+	-- страховка: если персонаж почему-то не появился сам, загружаем его вручную
+	task.delay(3, function()
+		if player.Parent and not player.Character then
+			warn("[GameService] персонаж не появился сам — загружаю вручную:", player.Name)
+			player:LoadCharacter()
+		end
+	end)
+
 	local profile = PlayerData.load(player)
 	Remotes.Phase:FireClient(player, "lobby")
 	if profile then

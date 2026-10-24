@@ -52,6 +52,26 @@ local allowed: { [Player]: { npcId: string, options: { [string]: boolean } } } =
 local lastDuel: { [Player]: { [string]: number } } = {}
 local rng = Random.new()
 
+-- NPC с этими ролями бродят вокруг своего поста; остальные стоят, но дышат и поворачиваются к игроку
+local ROAMING = { eta = true, portmaster = true, razor = true, host = true, catdiner = true, goldgirl = true, beachnpc = true, ging = true }
+local ROAM_RADIUS = 9
+local WALK_SPEED = 3.5
+local NOTICE_DISTANCE = 18
+
+type Actor = {
+	model: Model,
+	scale: number,
+	home: Vector3,
+	position: Vector3,
+	roam: boolean,
+	goal: Vector3?,
+	waitUntil: number,
+	phase: number,
+	facing: Vector3,
+}
+
+local actors: { Actor } = {}
+
 local function say(player: Player, npcId: string, npc: Npcs.Npc, text: string, options: { Option }?)
 	local list = options or {}
 	local set = {}
@@ -616,6 +636,63 @@ local function onChoice(player: Player, data: any)
 	role.choose(ctx, data.optionId)
 end
 
+--- Ближайший игрок в игре в пределах distance от точки: (позиция, дистанция).
+local function nearestPlayerPosition(from: Vector3, distance: number): (Vector3?, number)
+	local best: Vector3? = nil
+	local bestDistance = distance
+	for _, player in Players:GetPlayers() do
+		local profile = PlayerData.get(player)
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if root and profile and profile.inGame then
+			local position = (root :: BasePart).Position
+			local d = (position - from).Magnitude
+			if d < bestDistance then
+				best, bestDistance = position, d
+			end
+		end
+	end
+	return best, bestDistance
+end
+
+function NpcService.animate(actor: Actor, dt: number, now: number)
+	local watching, distance = nearestPlayerPosition(actor.position, NOTICE_DISTANCE)
+	local moving = false
+
+	if watching then
+		actor.facing = watching
+	end
+
+	if actor.roam and (not watching or distance > 7) then
+		if actor.goal and (actor.goal - actor.position).Magnitude > 0.8 then
+			local direction = actor.goal - actor.position
+			local flat = Vector3.new(direction.X, 0, direction.Z)
+			if flat.Magnitude > 0.01 then
+				local unit = flat.Unit
+				local nextX = actor.position.X + unit.X * WALK_SPEED * dt
+				local nextZ = actor.position.Z + unit.Z * WALK_SPEED * dt
+				actor.position = Vector3.new(nextX, WorldBuilder.terrainY(nextX, nextZ), nextZ)
+				if not watching then
+					actor.facing = actor.position + unit * 10
+				end
+				moving = true
+			end
+		elseif now >= actor.waitUntil then
+			local angle = rng:NextNumber(0, math.pi * 2)
+			local radius = rng:NextNumber(3, ROAM_RADIUS)
+			local goalX = actor.home.X + math.cos(angle) * radius
+			local goalZ = actor.home.Z + math.sin(angle) * radius
+			actor.goal = Vector3.new(goalX, actor.home.Y, goalZ)
+			actor.waitUntil = now + rng:NextNumber(2, 6)
+		else
+			actor.goal = nil
+		end
+	end
+
+	actor.phase += dt * (moving and 7 or 1.4)
+	local swing = moving and math.sin(actor.phase) * 0.6 or math.sin(actor.phase) * 0.04
+	RigBuilder.place(actor.model, actor.position, actor.position.Y, actor.facing, actor.scale, swing)
+end
+
 function NpcService.start()
 	local folder = Instance.new("Folder")
 	folder.Name = "Npcs"
@@ -629,6 +706,17 @@ function NpcService.start()
 		local lookAt = Vector3.new(zone.x, position.Y, zone.z + 60)
 		RigBuilder.place(model, position, position.Y, lookAt, scale)
 		model.Parent = folder
+		table.insert(actors, {
+			model = model,
+			scale = scale,
+			home = position,
+			position = position,
+			roam = ROAMING[npcId] == true,
+			goal = nil,
+			waitUntil = 0,
+			phase = rng:NextNumber(0, 6.28),
+			facing = Vector3.new(zone.x, position.Y, zone.z + 60),
+		})
 
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.ActionText = "Поговорить"
@@ -641,6 +729,22 @@ function NpcService.start()
 			open(player, npcId)
 		end)
 	end
+
+	-- оживление: ходьба по кругу у поста, дыхание, взгляд на игрока рядом
+	local RunService = game:GetService("RunService")
+	local accumulator = 0
+	RunService.Heartbeat:Connect(function(dt)
+		accumulator += dt
+		if accumulator < 1 / 15 then
+			return
+		end
+		local step = accumulator
+		accumulator = 0
+		local now = os.clock()
+		for _, actor in actors do
+			NpcService.animate(actor, step, now)
+		end
+	end)
 
 	Remotes.DialogChoice.OnServerEvent:Connect(onChoice)
 	Players.PlayerRemoving:Connect(function(player)
