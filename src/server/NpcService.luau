@@ -71,6 +71,8 @@ type Actor = {
 }
 
 local actors: { Actor } = {}
+local npcHome: { [string]: Vector3 } = {}
+local MAX_TALK_DISTANCE = 40 -- выбор в диалоге принимается, только пока игрок рядом с NPC
 
 local function say(player: Player, npcId: string, npc: Npcs.Npc, text: string, options: { Option }?)
 	local list = options or {}
@@ -629,6 +631,13 @@ local function onChoice(player: Player, data: any)
 	if not role then
 		return
 	end
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local home = npcHome[data.npcId]
+	if not profile.inGame or not root or (home and ((root :: BasePart).Position - home).Magnitude > MAX_TALK_DISTANCE) then
+		allowed[player] = nil
+		Remotes.Dialog:FireClient(player, { close = true })
+		return
+	end
 	local ctx = context(player, profile, data.npcId, npc)
 	if data.optionId == "bye" then
 		ctx.close()
@@ -712,6 +721,7 @@ function NpcService.start()
 		local lookAt = Vector3.new(zone.x, position.Y, zone.z + 60)
 		RigBuilder.place(model, position, position.Y, lookAt, scale)
 		model.Parent = folder
+		npcHome[npcId] = position
 		table.insert(actors, {
 			model = model,
 			scale = scale,
