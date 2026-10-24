@@ -633,11 +633,17 @@ end
 --- Невысокий забор по окраине города; в сторону каждой тропы оставлен проход.
 local function fenceTown(zoneKey: string, color: Color3)
 	local zone = Zones[zoneKey]
-	local gaps = {}
+	local gaps: { number } = {}
 	for _, pair in TRAILS do
-		local other = pair[1] == zoneKey and pair[2] or (pair[2] == zoneKey and pair[1] or nil)
+		local otherKey = ""
+		if pair[1] == zoneKey then
+			otherKey = pair[2]
+		elseif pair[2] == zoneKey then
+			otherKey = pair[1]
+		end
+		local other = Zones[otherKey]
 		if other then
-			table.insert(gaps, math.atan2(Zones[other].z - zone.z, Zones[other].x - zone.x))
+			table.insert(gaps, math.atan2(other.z - zone.z, other.x - zone.x))
 		end
 	end
 	local radius = zone.r * 0.97
