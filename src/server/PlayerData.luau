@@ -30,6 +30,8 @@ export type Profile = {
 local PlayerData = {}
 
 local profiles: { [Player]: Profile } = {}
+-- не удалось прочитать сохранение: такой профиль не записываем, чтобы не затереть настоящий прогресс пустым
+local loadFailed: { [Player]: boolean } = {}
 local store: DataStore? = nil
 
 do
@@ -137,16 +139,27 @@ end
 function PlayerData.load(player: Player): Profile
 	local raw = nil
 	if store then
+		local loaded = false
 		for attempt = 1, 3 do
 			local ok, result = pcall(function()
 				return (store :: DataStore):GetAsync(key(player))
 			end)
 			if ok then
 				raw = result
+				loaded = true
 				break
 			end
 			warn("[PlayerData] загрузка не удалась:", result)
+			if tostring(result):find("StudioAccessToApisNotAllowed") then
+				-- в Studio без доступа к API ждать бессмысленно: играем без сохранения
+				store = nil
+				break
+			end
 			task.wait(attempt)
+		end
+		if not loaded and store then
+			loadFailed[player] = true
+			task.defer(PlayerData.notify, player, "Не удалось загрузить сохранение: прогресс этой сессии не будет записан.", "warn")
 		end
 	end
 	local profile = deserialize(raw)
@@ -156,7 +169,7 @@ end
 
 function PlayerData.save(player: Player)
 	local profile = profiles[player]
-	if not profile or not store then
+	if not profile or not store or loadFailed[player] then
 		return
 	end
 	local ok, err = pcall(function()
@@ -188,6 +201,7 @@ function PlayerData.unload(player: Player)
 		end
 	end
 	profiles[player] = nil
+	loadFailed[player] = nil
 end
 
 --- Снимок для клиента.
