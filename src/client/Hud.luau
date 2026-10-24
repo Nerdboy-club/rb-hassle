@@ -144,6 +144,7 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 		local data = State.data
 		if not data or State.phase == "lobby" then
 			goals.Visible = false
+			guide.set(nil)
 			return
 		end
 		goals.Visible = true
