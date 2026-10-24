@@ -56,8 +56,8 @@ local nextId = 0
 
 local function groundParams(): RaycastParams
 	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { workspace:WaitForChild("World") }
+	params.FilterType = Enum.RaycastFilterType.Include -- только Terrain: монстры не взбираются на игроков и постройки
+	params.FilterDescendantsInstances = { workspace.Terrain }
 	return params
 end
 

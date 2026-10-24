@@ -75,11 +75,16 @@ local function sign(parent: Instance, text: string, position: Vector3, color: Co
 end
 
 --- Высота земли (только Terrain: ray игнорирует всё, что построено в world).
+local terrainOnly: RaycastParams?
+
 function WorldBuilder.terrainY(x: number, z: number): number
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { world }
-	local hit = workspace:Raycast(V3(x, 400, z), V3(0, -800, 0), params)
+	-- только Terrain: не цепляем игроков, NPC, монстров и постройки
+	if not terrainOnly then
+		terrainOnly = RaycastParams.new()
+		terrainOnly.FilterType = Enum.RaycastFilterType.Include
+		terrainOnly.FilterDescendantsInstances = { terrain }
+	end
+	local hit = workspace:Raycast(V3(x, 400, z), V3(0, -800, 0), terrainOnly)
 	return hit and hit.Position.Y or 0
 end
 
