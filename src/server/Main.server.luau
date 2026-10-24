@@ -1,27 +1,32 @@
 -- Точка входа сервера. Порядок важен: сначала мир, затем сервисы, которые на него опираются.
+-- Каждый шаг защищён pcall: ошибка в одном сервисе не должна оставлять игрока без персонажа и остальные сервисы не запущенными.
+local function safely(label: string, step: () -> ())
+	local ok, err = pcall(step)
+	if not ok then
+		warn(`[Main] {label}: {err}`)
+	end
+end
+
 local WorldBuilder = require(script.Parent.WorldBuilder)
-WorldBuilder.build()
+safely("WorldBuilder.build", WorldBuilder.build)
 
-local Hand = require(script.Parent.Hand)
-local Status = require(script.Parent.Status)
-local ItemService = require(script.Parent.ItemService)
-local MonsterService = require(script.Parent.MonsterService)
-local CombatService = require(script.Parent.CombatService)
-local ShopService = require(script.Parent.ShopService)
-local QuizService = require(script.Parent.QuizService)
-local NpcService = require(script.Parent.NpcService)
-local SpellService = require(script.Parent.SpellService)
-local GameService = require(script.Parent.GameService)
-local BinderActions = require(script.Parent.BinderActions)
+local services = {
+	"Hand",
+	"Status",
+	"ItemService",
+	"MonsterService",
+	"CombatService",
+	"ShopService",
+	"QuizService",
+	"NpcService",
+	"SpellService",
+	"BinderActions",
+	"GameService",
+}
 
-Hand.start()
-Status.start()
-ItemService.start()
-MonsterService.start()
-CombatService.start()
-ShopService.start()
-QuizService.start()
-NpcService.start()
-SpellService.start()
-BinderActions.start()
-GameService.start()
+for _, name in services do
+	safely(name, function()
+		local module = require(script.Parent[name])
+		module.start()
+	end)
+end
