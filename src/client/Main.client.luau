@@ -23,28 +23,10 @@ gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- масштаб интерфейса под размер экрана: на телефоне панели уменьшаются, а не налезают друг на друга
-do
-	local uiScale = Instance.new("UIScale")
-	uiScale.Parent = gui
-	local function fit()
-		local camera = workspace.CurrentCamera
-		if not camera then
-			return
-		end
-		local size = camera.ViewportSize
-		uiScale.Scale = math.clamp(math.min(size.X / 1000, size.Y / 640), 0.5, 1)
-	end
-	fit()
-	local camera = workspace.CurrentCamera
-	if camera then
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
-	end
-	-- список игроков справа сверху занимает место цели и эффекты
-	pcall(function()
-		game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
-	end)
-end
+-- список игроков справа сверху занимает место целей и эффектов
+pcall(function()
+	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
+end)
 
 local book = BookUI.create(gui)
 DialogUI.create(gui)

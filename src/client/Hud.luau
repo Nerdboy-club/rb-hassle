@@ -21,7 +21,30 @@ local KIND_COLORS = {
 	warn = Theme.warn,
 }
 
-function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
+function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
+	-- корень HUD: масштабируется под экран (телефон), панели книги/лавки/диалога масштабируют себя сами
+	local gui = Instance.new("Frame")
+	gui.Name = "HudRoot"
+	gui.BackgroundTransparency = 1
+	gui.BorderSizePixel = 0
+	gui.Parent = screen
+	local hudScale = Instance.new("UIScale")
+	hudScale.Parent = gui
+	local function fitHud()
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		local size = camera.ViewportSize
+		local factor = math.clamp(math.min(size.X / 1000, size.Y / 640), 0.7, 1)
+		hudScale.Scale = factor
+		gui.Size = UDim2.fromScale(1 / factor, 1 / factor)
+	end
+	fitHud()
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitHud)
+	end
+
 	-- ===== баланс и фаза =====
 	local top = Theme.frame(gui, UDim2.fromOffset(260, 38), UDim2.fromOffset(120, 8), Theme.bg)
 	top.BackgroundTransparency = 0.15
