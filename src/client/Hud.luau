@@ -23,7 +23,7 @@ local KIND_COLORS = {
 
 function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
 	-- ===== баланс и фаза =====
-	local top = Theme.frame(gui, UDim2.fromOffset(260, 38), UDim2.fromOffset(14, 12), Theme.bg)
+	local top = Theme.frame(gui, UDim2.fromOffset(260, 38), UDim2.fromOffset(120, 8), Theme.bg)
 	top.BackgroundTransparency = 0.15
 	Theme.corner(top, 10)
 	local yenLabel = Theme.label(top, "", UDim2.new(1, -16, 1, 0), UDim2.fromOffset(10, 0), {
@@ -174,7 +174,7 @@ function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
 	end
 
 	-- ===== уведомления =====
-	local toasts = Theme.frame(gui, UDim2.fromOffset(520, 220), UDim2.new(0.5, 0, 0, 14), Theme.bg)
+	local toasts = Theme.frame(gui, UDim2.fromOffset(440, 220), UDim2.new(0.5, 0, 0, 54), Theme.bg)
 	toasts.AnchorPoint = Vector2.new(0.5, 0)
 	toasts.BackgroundTransparency = 1
 	local toastLayout = Instance.new("UIListLayout")
@@ -184,7 +184,7 @@ function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
 
 	local function notify(text: string, kind: string?)
 		local color = KIND_COLORS[kind or "info"] or Theme.accent
-		local toast = Theme.label(toasts, text, UDim2.fromOffset(500, 44), nil, {
+		local toast = Theme.label(toasts, text, UDim2.fromOffset(420, 44), nil, {
 			BackgroundTransparency = 0.12,
 			BackgroundColor3 = Theme.bg,
 			TextSize = 14,
