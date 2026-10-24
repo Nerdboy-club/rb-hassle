@@ -174,7 +174,7 @@ local function playersAtStage(): { Player }
 	for _, player in Players:GetPlayers() do
 		local profile = PlayerData.get(player)
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if profile and profile.inGame and root and ((root :: BasePart).Position - stage).Magnitude <= STAGE_RADIUS then
+		if profile and profile.inGame and not sessions[player] and root and ((root :: BasePart).Position - stage).Magnitude <= STAGE_RADIUS then
 			table.insert(found, player)
 		end
 	end
