@@ -57,8 +57,8 @@ local function sign(parent: Instance, text: string, position: Vector3, color: Co
 	anchor.Transparency = 1
 	anchor.CanCollide = false
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(320, 56)
-	gui.MaxDistance = 400
+	gui.Size = UDim2.fromOffset(340, 52)
+	gui.MaxDistance = 320
 	gui.StudsOffset = V3(0, 0, 0)
 	gui.Parent = anchor
 	local label = Instance.new("TextLabel")
@@ -73,6 +73,17 @@ local function sign(parent: Instance, text: string, position: Vector3, color: Co
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 10)
 	corner.Parent = label
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 6)
+	padding.PaddingBottom = UDim.new(0, 6)
+	padding.PaddingLeft = UDim.new(0, 10)
+	padding.PaddingRight = UDim.new(0, 10)
+	padding.Parent = label
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color or C3(255, 255, 255)
+	stroke.Thickness = 2
+	stroke.Transparency = 0.3
+	stroke.Parent = label
 end
 
 --- Высота земли (только Terrain: ray игнорирует всё, что построено в world).
