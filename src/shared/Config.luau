@@ -1,34 +1,40 @@
+-- Все числа игры в одном месте.
 return {
-	CarsFolderName = "Cars", -- ServerStorage.Cars: Model'и машин (с VehicleSeat внутри)
-	SpawnCooldownSeconds = 3,
-	SpawnDistance = 14, -- студов перед игроком
-	CarYawOffsetDegrees = 0, -- если машина появляется боком/задом: 90, -90 или 180
+	HandSeconds = 60, -- карта в руке: не вложил в книгу за минуту — снова станет предметом
+	NumberedSlots = 100, -- «указанные» слоты книги
+	FreeSlots = 45, -- свободные слоты
+	StartYen = 3000,
 
-	-- 1 stud ~ 0.28 m (стандарт Roblox) для спидометра
-	StudToMeters = 0.28,
+	PickupRespawnSeconds = 45,
+	PickupHoldSeconds = 0.5,
 
-	Traffic = {
-		Enabled = true,
-		Count = 12,
-		PathsFolderName = "TrafficPaths", -- Workspace.TrafficPaths (см. README)
-		TemplatesFolderName = "TrafficCars", -- ServerStorage.TrafficCars (опционально)
-		TemplateYawOffsetDegrees = 0, -- если шаблон едет боком/задом: 90, -90, 180
+	AttackRange = 14,
+	AttackCooldown = 0.5,
+	BaseDamage = 8,
 
-		DefaultSpeedLimit = 50, -- studs/s (~50 km/h)
-		Accel = 18, -- studs/s^2
-		Brake = 45,
-		MinSpawnGap = 30, -- минимальная дистанция между машинами при появлении
-		MinPlayerSpawnDistance = 100, -- не появляться ближе этого к игрокам
-		StuckSeconds = 20, -- машина стоит дольше -> переставляем в другое место
-	},
+	RespawnSeconds = 3,
+	AutosaveSeconds = 60,
+	DataStoreName = "GreedIslandV1",
 
-	Shashki = {
-		MinSpeedKmh = 80, -- ниже этой скорости очки не начисляются
-		NearMissDistance = 9, -- studs между центрами машин (соседняя полоса ~12)
-		PerCarCooldown = 2.5, -- одну и ту же машину повторно засчитываем не чаще
-		BasePoints = 50,
-		ComboWindow = 4, -- секунд без близкого проезда -> комбо сбрасывается
-		MaxMultiplier = 10,
-		CrashSpeedDrop = 0.4, -- потеря >40% скорости за 0.25 с = авария, комбо сгорает
-	},
+	MetRadius = 25, -- «встреченные» игроки попадают в список книги
+	MetSeconds = 3,
+
+	StanceCooldown = 1,
+	ZetsuAggroFactor = 0.15, -- в Зетсу монстры почти не замечают
+	TenDamageFactor = 0.5, -- в Тен урон от монстров вдвое меньше
+
+	InfoPrice = 400, -- «купить информацию» в торговых лавках
+	BRankPurchases = 50, -- карты ранга B продаются после 50 покупок в одной лавке
+	SellFraction = 0.4, -- сколько цены карты платит лавка
+
+	ContestIntervalSeconds = 420, -- «ежемесячный» конкурс Антокибы
+	ContestAnswerSeconds = 20,
+
+	FinalQuizQuestions = 5,
+	FinalQuizPass = 4,
+
+	CaseSlots = 3, -- футляр на три слота после победы
+
+	RealWorldPos = Vector3.new(0, 1500, 0),
+	IslandRadius = 900,
 }

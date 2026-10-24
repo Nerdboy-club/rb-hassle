@@ -1,186 +1,163 @@
+-- Клиент: собирает интерфейс, горячие клавиши, удар, маркеры подсказок.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local Config = require(Shared.Config)
 local Remotes = require(Shared.Remotes)
+
+local BookUI = require(script.Parent.BookUI)
+local DialogUI = require(script.Parent.DialogUI)
+local Hud = require(script.Parent.Hud)
+local QuizUI = require(script.Parent.QuizUI)
+local ShopUI = require(script.Parent.ShopUI)
+local State = require(script.Parent.State)
 
 local player = Players.LocalPlayer
 
-local function new(className, props, parent)
-	local inst = Instance.new(className)
-	for k, v in props do
-		inst[k] = v
-	end
-	inst.Parent = parent
-	return inst
+local gui = Instance.new("ScreenGui")
+gui.Name = "GreedIslandUI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local book = BookUI.create(gui)
+DialogUI.create(gui)
+local shop = ShopUI.create(gui)
+QuizUI.create(gui)
+
+local function toggleStance(name: string)
+	Remotes.Stance:FireServer(State.stance == name and "none" or name)
 end
 
-local gui = new("ScreenGui", {
-	Name = "DriveHud",
-	ResetOnSpawn = false,
-	IgnoreGuiInset = true,
-}, player:WaitForChild("PlayerGui"))
-
-------------------------------------------------------------------------
--- Car menu (bottom-left)
-------------------------------------------------------------------------
-
-local menu = new("Frame", {
-	Size = UDim2.fromOffset(180, 0),
-	AutomaticSize = Enum.AutomaticSize.Y,
-	Position = UDim2.new(0, 16, 1, -16),
-	AnchorPoint = Vector2.new(0, 1),
-	BackgroundColor3 = Color3.new(0, 0, 0),
-	BackgroundTransparency = 0.4,
-}, gui)
-new("UICorner", { CornerRadius = UDim.new(0, 8) }, menu)
-new("UIPadding", {
-	PaddingTop = UDim.new(0, 8),
-	PaddingBottom = UDim.new(0, 8),
-	PaddingLeft = UDim.new(0, 8),
-	PaddingRight = UDim.new(0, 8),
-}, menu)
-new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, menu)
-
-local function button(text, order, onClick)
-	local b = new("TextButton", {
-		Size = UDim2.new(1, 0, 0, 34),
-		BackgroundColor3 = Color3.fromRGB(40, 40, 46),
-		TextColor3 = Color3.new(1, 1, 1),
-		Font = Enum.Font.GothamMedium,
-		TextSize = 16,
-		Text = text,
-		LayoutOrder = order,
-	}, menu)
-	new("UICorner", { CornerRadius = UDim.new(0, 6) }, b)
-	b.Activated:Connect(onClick)
-	return b
+--- Нижний регистр с кириллицей (string.lower работает только с ASCII).
+local function lowerCyrillic(text: string): string
+	local out = {}
+	for _, code in utf8.codepoint(text, 1, -1) and { utf8.codepoint(text, 1, -1) } or {} do
+		if code >= 0x410 and code <= 0x42F then
+			code += 32
+		elseif code == 0x401 then
+			code = 0x451
+		elseif code < 128 then
+			code = string.byte(string.lower(string.char(code)))
+		end
+		table.insert(out, utf8.char(code))
+	end
+	return table.concat(out)
 end
 
-new("TextLabel", {
-	Size = UDim2.new(1, 0, 0, 20),
-	BackgroundTransparency = 1,
-	TextColor3 = Color3.fromRGB(200, 200, 205),
-	Font = Enum.Font.GothamBold,
-	TextSize = 14,
-	Text = "SPAWN CAR",
-	LayoutOrder = 0,
-}, menu)
+-- слова кольца: «Книга» открывает переплёт, «Приращение» — режим приращения
+local function say(text: string)
+	local trimmed = text:gsub("^[%s/]+", "")
+	trimmed = trimmed:gsub("%s+$", "")
+	local word = lowerCyrillic(trimmed)
+	if word == "книга" or word == "book" then
+		book.open("normal")
+	elseif word == "приращение" or word == "gain" then
+		book.open("gain")
+	elseif word == "тен" or word == "ten" then
+		Remotes.Stance:FireServer("ten")
+	elseif word == "зетсу" or word == "zetsu" then
+		Remotes.Stance:FireServer("zetsu")
+	end
+end
 
-task.spawn(function()
-	local cars = Remotes.GetCars:InvokeServer()
-	if #cars == 0 then
-		new("TextLabel", {
-			Size = UDim2.new(1, 0, 0, 34),
-			BackgroundTransparency = 1,
-			TextColor3 = Color3.fromRGB(255, 120, 120),
-			Font = Enum.Font.Gotham,
-			TextSize = 14,
-			TextWrapped = true,
-			Text = "No cars in ServerStorage.Cars",
-			LayoutOrder = 1,
-		}, menu)
+local hud = Hud.create(gui, {
+	book = function()
+		book.toggle()
+	end,
+	gain = function()
+		book.open("gain")
+	end,
+	ten = function()
+		toggleStance("ten")
+	end,
+	zetsu = function()
+		toggleStance("zetsu")
+	end,
+	command = say,
+})
+hud.notify("Добро пожаловать в Greed Island. Подойдите к JoyStation и нажмите E.", "info")
+
+-- ===== горячие клавиши и удар =====
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
 	end
-	for i, name in cars do
-		button(name, i, function()
-			Remotes.SpawnCar:FireServer(name)
-		end)
+	if State.phase == "lobby" then
+		return
 	end
-	button("Remove car", 1000, function()
-		Remotes.DespawnCar:FireServer()
+	if input.KeyCode == Enum.KeyCode.B then
+		book.toggle()
+	elseif input.KeyCode == Enum.KeyCode.G then
+		book.open("gain")
+	elseif input.KeyCode == Enum.KeyCode.T then
+		toggleStance("ten")
+	elseif input.KeyCode == Enum.KeyCode.Z then
+		toggleStance("zetsu")
+	elseif input.KeyCode == Enum.KeyCode.Escape and shop.isOpen() then
+		shop.close()
+	elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		if book.isOpen() or shop.isOpen() then
+			return
+		end
+		local camera = workspace.CurrentCamera
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not camera or not root then
+			return
+		end
+		local location = UserInputService:GetMouseLocation()
+		if input.UserInputType == Enum.UserInputType.Touch then
+			location = Vector2.new(input.Position.X, input.Position.Y)
+		end
+		local ray = camera:ViewportPointToRay(location.X, location.Y)
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { character :: Instance }
+		local hit = workspace:Raycast(ray.Origin, ray.Direction * 300, params)
+		local target = hit and hit.Position or (ray.Origin + ray.Direction * 40)
+		local origin = (root :: BasePart).Position + Vector3.new(0, 1.5, 0)
+		local direction = target - origin
+		if direction.Magnitude > 0.1 then
+			Remotes.Attack:FireServer(direction.Unit)
+		end
+	end
+end)
+
+-- «/» ставит курсор в строку слов кольца
+UserInputService.InputBegan:Connect(function(input, processed)
+	if not processed and input.KeyCode == Enum.KeyCode.Slash then
+		local box = gui:FindFirstChildWhichIsA("TextBox", true)
+		if box then
+			task.defer(function()
+				(box :: TextBox):CaptureFocus()
+			end)
+		end
+	end
+end)
+
+-- ===== маркеры подсказок (Ясновидение, Золотой компас, Колокольчик) =====
+Remotes.Hint.OnClientEvent:Connect(function(data)
+	local folder = Instance.new("Folder")
+	folder.Name = "HintBeacons"
+	folder.Parent = workspace
+	for _, position in data.positions do
+		local pillar = Instance.new("Part")
+		pillar.Anchored = true
+		pillar.CanCollide = false
+		pillar.CanQuery = false
+		pillar.Material = Enum.Material.Neon
+		pillar.Color = Color3.fromRGB(255, 225, 110)
+		pillar.Transparency = 0.35
+		pillar.Size = Vector3.new(0.8, 90, 0.8)
+		pillar.Position = position + Vector3.new(0, 45, 0)
+		pillar.Parent = folder
+	end
+	task.delay(data.seconds or 20, function()
+		folder:Destroy()
 	end)
 end)
 
-------------------------------------------------------------------------
--- Speedometer (bottom-right, only while seated in a vehicle)
-------------------------------------------------------------------------
-
-local speedo = new("TextLabel", {
-	Size = UDim2.fromOffset(220, 70),
-	Position = UDim2.new(1, -16, 1, -16),
-	AnchorPoint = Vector2.new(1, 1),
-	BackgroundColor3 = Color3.new(0, 0, 0),
-	BackgroundTransparency = 0.4,
-	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBold,
-	TextSize = 36,
-	Text = "0 km/h",
-	Visible = false,
-}, gui)
-new("UICorner", { CornerRadius = UDim.new(0, 8) }, speedo)
-
-RunService.RenderStepped:Connect(function()
-	local char = player.Character
-	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	local seat = hum and hum.SeatPart
-	if seat and seat:IsA("VehicleSeat") then
-		local kmh = seat.AssemblyLinearVelocity.Magnitude * Config.StudToMeters * 3.6
-		speedo.Text = string.format("%d km/h", math.floor(kmh + 0.5))
-		speedo.Visible = true
-	else
-		speedo.Visible = false
-	end
-end)
-
-------------------------------------------------------------------------
--- Shashki score (top-center)
-------------------------------------------------------------------------
-
-local scoreFrame = new("Frame", {
-	Size = UDim2.fromOffset(260, 90),
-	Position = UDim2.new(0.5, 0, 0, 16),
-	AnchorPoint = Vector2.new(0.5, 0),
-	BackgroundColor3 = Color3.new(0, 0, 0),
-	BackgroundTransparency = 0.4,
-}, gui)
-new("UICorner", { CornerRadius = UDim.new(0, 8) }, scoreFrame)
-
-local scoreLabel = new("TextLabel", {
-	Size = UDim2.new(1, 0, 0.55, 0),
-	BackgroundTransparency = 1,
-	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBold,
-	TextSize = 34,
-	Text = "0",
-}, scoreFrame)
-
-local comboLabel = new("TextLabel", {
-	Size = UDim2.new(1, 0, 0.35, 0),
-	Position = UDim2.fromScale(0, 0.6),
-	BackgroundTransparency = 1,
-	TextColor3 = Color3.fromRGB(255, 200, 60),
-	Font = Enum.Font.GothamBold,
-	TextSize = 20,
-	Text = "",
-}, scoreFrame)
-
-local popup = new("TextLabel", {
-	Size = UDim2.fromOffset(300, 40),
-	Position = UDim2.new(0.5, 0, 0, 120),
-	AnchorPoint = Vector2.new(0.5, 0),
-	BackgroundTransparency = 1,
-	TextColor3 = Color3.fromRGB(120, 255, 160),
-	Font = Enum.Font.GothamBlack,
-	TextSize = 26,
-	TextStrokeTransparency = 0.3,
-	Text = "",
-}, gui)
-
-local popupId = 0
-Remotes.ShashkiScore.OnClientEvent:Connect(function(data)
-	scoreLabel.Text = tostring(data.score)
-	comboLabel.Text = if data.mult > 1 then `COMBO x{data.mult}` else ""
-	if data.popup then
-		popupId += 1
-		local id = popupId
-		popup.Text = data.popup
-		popup.TextColor3 = if data.crash then Color3.fromRGB(255, 90, 90) else Color3.fromRGB(120, 255, 160)
-		task.delay(1.2, function()
-			if popupId == id then
-				popup.Text = ""
-			end
-		end)
-	end
-end)
+Remotes.BinderAction:FireServer({ action = "sync" })

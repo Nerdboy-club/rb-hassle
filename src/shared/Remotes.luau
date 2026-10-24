@@ -2,10 +2,22 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local DEFS = {
-	SpawnCar = "RemoteEvent", -- client -> server (carName: string)
-	DespawnCar = "RemoteEvent", -- client -> server
-	GetCars = "RemoteFunction", -- client -> server, returns { string }
-	ShashkiScore = "RemoteEvent", -- server -> client { score, combo, mult, popup? }
+	-- server -> client
+	State = "RemoteEvent", -- полный снимок книги: слоты, свободные, рука, йены, встреченные
+	Notify = "RemoteEvent", -- { text, kind }
+	Dialog = "RemoteEvent", -- { npcId, name, text, options = { {id, label} } } либо { close = true }
+	ShopOpen = "RemoteEvent", -- { shopId, name, spells, yen, buy = {...}, sell = {...} }
+	Quiz = "RemoteEvent", -- { kind, qid, text, options, seconds, round, total } либо { close = true }
+	Hint = "RemoteEvent", -- { positions = {Vector3}, seconds }
+	Status = "RemoteEvent", -- { effects = { {name, seconds} }, stance }
+	Phase = "RemoteEvent", -- "lobby" | "game" | "win"
+	-- client -> server
+	BinderAction = "RemoteEvent", -- { action = "insert"|"release"|"gain", ... }
+	DialogChoice = "RemoteEvent", -- { npcId, optionId }
+	ShopAction = "RemoteEvent", -- { shopId, action = "buy"|"sell"|"info", cardId }
+	QuizAnswer = "RemoteEvent", -- { qid, index }
+	Attack = "RemoteEvent", -- Vector3 направление удара
+	Stance = "RemoteEvent", -- "ten" | "zetsu" | "none"
 }
 
 local isServer = RunService:IsServer()
