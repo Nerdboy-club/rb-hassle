@@ -354,8 +354,8 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 					local text = ("%s %s · %d с — вложить"):format(Cards.ICONS[card.kind] or "🎴", card.name, math.ceil(left))
 					local button = handButtons[entry.uid]
 					if not button then
-						button = Theme.button(handFrame, text, UDim2.fromOffset(230, 28), nil, Ranks.color(card.rank):Lerp(Theme.bg, 0.55))
-						button.TextSize = 12
+						button = Theme.button(handFrame, text, UDim2.fromOffset(230, TouchControls.isTouchDevice() and 38 or 28), nil, Ranks.color(card.rank):Lerp(Theme.bg, 0.55))
+						button.TextSize = TouchControls.isTouchDevice() and 13 or 12
 						handStrokes[entry.uid] = Theme.stroke(button, Ranks.color(card.rank), 2)
 						local uid = entry.uid
 						button.Activated:Connect(function()
