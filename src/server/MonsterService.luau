@@ -201,7 +201,7 @@ local function spawnAt(key: string): Mon?
 	for _ = 1, 30 do
 		local candidate = Util.randomPointIn(def.zone, rng)
 		point = Vector3.new(candidate.X, groundAt(candidate.X, candidate.Z), candidate.Z)
-		if point.Y > -0.5 and WorldBuilder.isFree(point + Vector3.new(0, 2, 0), 5) then
+		if point.Y > -0.5 and point.Y < 4 and WorldBuilder.isFree(point + Vector3.new(0, 2, 0), 5) then
 			break
 		end
 	end
