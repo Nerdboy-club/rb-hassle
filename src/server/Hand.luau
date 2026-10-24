@@ -15,6 +15,12 @@ local Hand = {}
 
 local MAX_IN_HAND = 6
 
+--- Руки заняты: новую карту взять нельзя.
+function Hand.isFull(player: Player): boolean
+	local profile = PlayerData.get(player)
+	return profile ~= nil and #profile.hand >= MAX_IN_HAND
+end
+
 --- Подобрать предмет: занять копию и положить карту в руку. node — узел в мире (вернётся при истечении).
 function Hand.add(player: Player, id: number, node: Instance?): (boolean, string?)
 	local profile = PlayerData.get(player)

@@ -228,6 +228,8 @@ local function remove(mon: Mon)
 	end
 end
 
+local setBar
+
 --- Поймали/победили: карта в руку игроку, монстр исчезает и позже появляется снова.
 local function capture(mon: Mon, player: Player)
 	if not mon.alive then
@@ -235,6 +237,13 @@ local function capture(mon: Mon, player: Player)
 	end
 	local def = mon.def
 	local drops = Cards.withSource("m", def.drop)
+	if #drops > 0 and Hand.isFull(player) then
+		-- карту некуда взять: монстр остаётся, а не исчезает вместе с наградой
+		mon.hp = math.max(mon.hp, 1)
+		setBar(mon)
+		PlayerData.notify(player, "Руки заняты: вложите карты в книгу, потом добейте " .. def.name .. ".", "warn")
+		return
+	end
 	remove(mon)
 
 	local profile = PlayerData.get(player)
@@ -272,7 +281,7 @@ local function capture(mon: Mon, player: Player)
 	end)
 end
 
-local function setBar(mon: Mon)
+function setBar(mon: Mon)
 	mon.bar.Size = UDim2.fromScale(math.clamp(mon.hp / mon.def.hp, 0, 1), 1)
 end
 
