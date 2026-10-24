@@ -12,6 +12,7 @@ local Util = require(Shared.Util)
 
 local State = require(script.Parent.State)
 local Theme = require(script.Parent.Theme)
+local TouchControls = require(script.Parent.TouchControls)
 
 local Hud = {}
 
@@ -276,7 +277,7 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 	local function refresh()
 		local data = State.data
 		local inGame = State.phase ~= "lobby"
-		ring.Visible = inGame
+		ring.Visible = inGame and not TouchControls.isTouchDevice() -- на телефоне кнопки справа (TouchControls)
 		handFrame.Visible = inGame
 		effectsLabel.Visible = inGame
 		if data then

@@ -13,6 +13,7 @@ local Effects = require(script.Parent.Effects)
 local QuizUI = require(script.Parent.QuizUI)
 local ShopUI = require(script.Parent.ShopUI)
 local State = require(script.Parent.State)
+local TouchControls = require(script.Parent.TouchControls)
 
 local player = Players.LocalPlayer
 
@@ -124,7 +125,81 @@ local hud = Hud.create(gui, {
 })
 hud.notify("Добро пожаловать в Greed Island. Подойдите к JoyStation и нажмите E.", "info")
 
--- ===== горячие клавиши и удар =====
+-- ===== удар =====
+local function sendAttack(direction: Vector3)
+	if direction.Magnitude > 0.1 then
+		Remotes.Attack:FireServer(direction.Unit)
+	end
+end
+
+--- Удар в точку экрана (мышь): луч от камеры, направление от персонажа.
+local function attackAt(location: Vector2)
+	local camera = workspace.CurrentCamera
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not camera or not root then
+		return
+	end
+	local ray = camera:ViewportPointToRay(location.X, location.Y)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { character :: Instance }
+	local hit = workspace:Raycast(ray.Origin, ray.Direction * 300, params)
+	local target = hit and hit.Position or (ray.Origin + ray.Direction * 40)
+	sendAttack(target - ((root :: BasePart).Position + Vector3.new(0, 1.5, 0)))
+end
+
+--- Удар кнопкой на телефоне: в ближайшего монстра впереди, иначе туда, куда смотрит персонаж.
+local function attackForward()
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return
+	end
+	local origin = root.Position + Vector3.new(0, 1.5, 0)
+	local look = root.CFrame.LookVector
+	local best: Vector3? = nil
+	local bestScore = math.huge
+	local monsters = workspace:FindFirstChild("Monsters")
+	if monsters then
+		for _, model in monsters:GetChildren() do
+			local part = model:FindFirstChild("Root") :: BasePart?
+			if part then
+				local offset = part.Position - origin
+				local distance = offset.Magnitude
+				if distance < 24 and distance > 0.1 and offset.Unit:Dot(look) > 0.2 then
+					local score = distance * (2 - offset.Unit:Dot(look))
+					if score < bestScore then
+						bestScore = score
+						best = offset
+					end
+				end
+			end
+		end
+	end
+	sendAttack(best or look)
+end
+
+if TouchControls.isTouchDevice() then
+	TouchControls.create(gui, {
+		attack = attackForward,
+		book = function()
+			book.toggle()
+		end,
+		gain = function()
+			book.open("gain")
+		end,
+		ten = function()
+			toggleStance("ten")
+		end,
+		zetsu = function()
+			toggleStance("zetsu")
+		end,
+	}, function()
+		return book.isOpen() or shop.isOpen()
+	end)
+end
+-- ===== горячие клавиши =====
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then
 		return
@@ -142,31 +217,12 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		toggleStance("zetsu")
 	elseif input.KeyCode == Enum.KeyCode.Escape and shop.isOpen() then
 		shop.close()
-	elseif input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	elseif input.UserInputType == Enum.UserInputType.MouseButton1 and not TouchControls.isTouchDevice() then
 		if book.isOpen() or shop.isOpen() then
 			return
 		end
-		local camera = workspace.CurrentCamera
-		local character = player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if not camera or not root then
-			return
-		end
 		local location = UserInputService:GetMouseLocation()
-		if input.UserInputType == Enum.UserInputType.Touch then
-			location = Vector2.new(input.Position.X, input.Position.Y)
-		end
-		local ray = camera:ViewportPointToRay(location.X, location.Y)
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		params.FilterDescendantsInstances = { character :: Instance }
-		local hit = workspace:Raycast(ray.Origin, ray.Direction * 300, params)
-		local target = hit and hit.Position or (ray.Origin + ray.Direction * 40)
-		local origin = (root :: BasePart).Position + Vector3.new(0, 1.5, 0)
-		local direction = target - origin
-		if direction.Magnitude > 0.1 then
-			Remotes.Attack:FireServer(direction.Unit)
-		end
+		attackAt(location)
 	end
 end)
 
