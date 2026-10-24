@@ -43,7 +43,8 @@ end
 
 --- Ближайший монстр к игроку (папка workspace.Monsters, часть Root).
 function Guide.nearestMonster(from: Vector3): Vector3?
-	local folder = workspace:FindFirstChild("Monsters")
+	local world = workspace:FindFirstChild("World")
+	local folder = world and world:FindFirstChild("Monsters")
 	if not folder then
 		return nil
 	end

@@ -162,12 +162,13 @@ local function attackForward()
 	local look = root.CFrame.LookVector
 	local best: Vector3? = nil
 	local bestScore = math.huge
-	local monsters = workspace:FindFirstChild("Monsters")
+	local world = workspace:FindFirstChild("World")
+	local monsters = world and world:FindFirstChild("Monsters")
 	if monsters then
 		for _, model in monsters:GetChildren() do
 			local part = model:FindFirstChild("Root") :: BasePart?
 			if part then
-				local offset = part.Position - origin
+				local offset = part.Position + Vector3.new(0, 2, 0) - origin
 				local distance = offset.Magnitude
 				if distance < 24 and distance > 0.1 and offset.Unit:Dot(look) > 0.2 then
 					local score = distance * (2 - offset.Unit:Dot(look))
