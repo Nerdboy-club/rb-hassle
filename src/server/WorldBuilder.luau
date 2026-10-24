@@ -219,6 +219,53 @@ local function plaza(zoneKey: string, radius: number, color: Color3)
 	disc.CanCollide = true
 end
 
+--- Фонарь: тонкий столб и светящийся шар (без PointLight — свет сотен ламп нагрузил бы клиент).
+local function lamp(base: Vector3)
+	column(decor, "LampPost", base, 9, 0.7, C3(45, 48, 58), Enum.Material.Metal)
+	local bulb = newPart(decor, "LampBulb", V3(2, 2, 2), CFrame.new(base + V3(0, 9.6, 0)), C3(255, 226, 150), Enum.Material.Neon, Enum.PartType.Ball)
+	bulb.CanCollide = false
+end
+
+--- Колодец: каменный сруб, вода внутри и крыша на двух столбах.
+local function well(base: Vector3)
+	column(decor, "WellBase", base, 3, 6, C3(150, 148, 140), Enum.Material.Cobblestone)
+	local water = column(decor, "WellWater", base + V3(0, 2.7, 0), 0.3, 4.6, C3(60, 130, 190), Enum.Material.Glass)
+	water.CanCollide = false
+	column(decor, "WellPostL", base + V3(-3.2, 0, 0), 8, 0.6, WOOD, Enum.Material.Wood)
+	column(decor, "WellPostR", base + V3(3.2, 0, 0), 8, 0.6, WOOD, Enum.Material.Wood)
+	newPart(decor, "WellRoof", V3(8, 0.7, 5), CFrame.new(base + V3(0, 8.4, 0)), C3(120, 70, 55), Enum.Material.Slate)
+end
+
+--- Ящик и бочка рядом.
+local function crates(base: Vector3, yaw: number)
+	local frame = CFrame.new(base) * CFrame.Angles(0, yaw, 0)
+	newPart(decor, "Crate", V3(2.6, 2.6, 2.6), frame * CFrame.new(0, 1.3, 0), C3(150, 108, 62), Enum.Material.WoodPlanks)
+	newPart(decor, "Crate", V3(2, 2, 2), frame * CFrame.new(0.4, 3.6, 0.2) * CFrame.Angles(0, 0.5, 0), C3(165, 120, 70), Enum.Material.WoodPlanks)
+	column(decor, "Barrel", base + frame:VectorToWorldSpace(V3(3.4, 0, 0.6)), 3, 2.2, C3(110, 78, 50), Enum.Material.Wood)
+end
+
+--- Фонари по кругу площади, колодец и несколько ящиков: город выглядит обжитым.
+local function townDetails(zoneKey: string, withWell: boolean)
+	local zone = Zones[zoneKey]
+	local plazaRadius = math.min(26, zone.r * 0.28)
+	for index = 0, 5 do
+		local angle = math.rad(15 + index * 60)
+		local x = zone.x + math.cos(angle) * (plazaRadius + 3)
+		local z = zone.z + math.sin(angle) * (plazaRadius + 3)
+		lamp(V3(x, WorldBuilder.terrainY(x, z), z))
+	end
+	if withWell then
+		local x, z = zone.x - 9, zone.z + 9
+		well(V3(x, WorldBuilder.terrainY(x, z), z))
+	end
+	for _ = 1, 3 do
+		local angle = rng:NextNumber(0, math.pi * 2)
+		local radius = zone.r * rng:NextNumber(0.5, 0.6)
+		local x, z = zone.x + math.cos(angle) * radius, zone.z + math.sin(angle) * radius
+		crates(V3(x, WorldBuilder.terrainY(x, z), z), rng:NextNumber(0, 6.28))
+	end
+end
+
 local function buildTown(zoneKey: string, wall: Color3, roof: Color3, count: number?)
 	local zone = Zones[zoneKey]
 	local houses = count or math.clamp(math.floor(zone.r / 9), 6, 14)
@@ -239,6 +286,7 @@ local function buildTown(zoneKey: string, wall: Color3, roof: Color3, count: num
 			angle + math.pi / 2
 		)
 	end
+	townDetails(zoneKey, zoneKey ~= "Aiai" and zoneKey ~= "Masadora")
 	local base = WorldBuilder.zonePoint(zoneKey, 0, 0)
 	sign(decor, zone.name, base + V3(0, 22, 0), zone.color)
 end
