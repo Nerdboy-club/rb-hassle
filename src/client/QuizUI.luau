@@ -97,7 +97,7 @@ function QuizUI.create(gui: ScreenGui)
 	local function fit()
 		local camera = workspace.CurrentCamera
 		if camera then
-			scale.Scale = math.clamp(camera.ViewportSize.X / 680, 0.6, 1)
+			scale.Scale = math.clamp(math.min(camera.ViewportSize.X / 680, camera.ViewportSize.Y / 430), 0.5, 1)
 		end
 	end
 	fit()
