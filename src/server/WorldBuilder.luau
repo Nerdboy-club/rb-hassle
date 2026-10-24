@@ -630,6 +630,46 @@ local function signpost(zoneKey: string, otherKey: string)
 	label.Parent = gui
 end
 
+--- Невысокий забор по окраине города; в сторону каждой тропы оставлен проход.
+local function fenceTown(zoneKey: string, color: Color3)
+	local zone = Zones[zoneKey]
+	local gaps = {}
+	for _, pair in TRAILS do
+		local other = pair[1] == zoneKey and pair[2] or (pair[2] == zoneKey and pair[1] or nil)
+		if other then
+			table.insert(gaps, math.atan2(Zones[other].z - zone.z, Zones[other].x - zone.x))
+		end
+	end
+	local radius = zone.r * 0.97
+	local count = math.floor(radius * math.pi * 2 / 7)
+	local previous: Vector3? = nil
+	for index = 0, count do
+		local angle = (index / count) * math.pi * 2
+		local open = false
+		for _, gap in gaps do
+			-- разность углов с учётом обхода круга
+			local delta = math.abs((angle - gap + math.pi) % (math.pi * 2) - math.pi)
+			if delta < 0.32 then
+				open = true
+				break
+			end
+		end
+		local x, z = zone.x + math.cos(angle) * radius, zone.z + math.sin(angle) * radius
+		local point = V3(x, WorldBuilder.terrainY(x, z), z)
+		if open or point.Y < -0.5 then
+			previous = nil
+		else
+			newPart(decor, "FencePost", V3(0.7, 3.4, 0.7), CFrame.new(point + V3(0, 1.7, 0)), color, Enum.Material.Wood)
+			if previous then
+				local mid = (previous + point) / 2 + V3(0, 2.5, 0)
+				local rail = newPart(decor, "FenceRail", V3(0.3, 0.5, (point - previous).Magnitude), CFrame.lookAt(mid, point + V3(0, 2.5, 0)), color, Enum.Material.Wood)
+				rail.CanCollide = false
+			end
+			previous = point
+		end
+	end
+end
+
 local function buildTrails()
 	for _, pair in TRAILS do
 		local a, b = Zones[pair[1]], Zones[pair[2]]
@@ -640,6 +680,10 @@ local function buildTrails()
 		signpost(pair[1], pair[2])
 		signpost(pair[2], pair[1])
 	end
+	fenceTown("Rubicuta", C3(210, 190, 160))
+	fenceTown("Aiai", C3(250, 240, 240))
+	fenceTown("Bunzen", C3(130, 100, 70))
+	fenceTown("Bandits", C3(95, 72, 50))
 end
 
 -- ===================== реальный мир (лобби) =====================
