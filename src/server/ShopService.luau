@@ -29,6 +29,8 @@ local SHOPS: { [string]: Shop } = {
 local RANK_VALUE = { SS = 50000, S = 30000, A = 15000, B = 8000, C = 3000, D = 1200, E = 600, F = 250, G = 100, H = 50 }
 
 local openShops: { [Player]: string } = {}
+local openAt: { [Player]: Vector3 } = {}
+local MAX_SHOP_DISTANCE = 40 -- дальше от места, где открыли лавку, сделки не принимаются
 local spellStock: { [number]: number } = {}
 local spellStockMax: { [number]: number } = {}
 
@@ -105,6 +107,8 @@ function ShopService.open(player: Player, shopId: string)
 	local data = payload(player, shopId)
 	if data then
 		openShops[player] = shopId
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		openAt[player] = root and (root :: BasePart).Position or nil
 		Remotes.ShopOpen:FireClient(player, data)
 	end
 end
@@ -220,6 +224,16 @@ local function handle(player: Player, data: any)
 	if not profile or not profile.inGame then
 		return
 	end
+	if data.action ~= "close" then
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local origin = openAt[player]
+		if not root or not origin or ((root :: BasePart).Position - origin).Magnitude > MAX_SHOP_DISTANCE then
+			openShops[player] = nil
+			openAt[player] = nil
+			PlayerData.notify(player, "Вы отошли от лавки — сделка отменена.", "warn")
+			return
+		end
+	end
 	if data.action == "buy" and type(data.cardId) == "number" then
 		buy(player, profile, data.shopId, data.cardId)
 	elseif data.action == "sell" and type(data.uid) == "number" then
@@ -228,6 +242,7 @@ local function handle(player: Player, data: any)
 		sellInfo(player, profile)
 	elseif data.action == "close" then
 		openShops[player] = nil
+		openAt[player] = nil
 		return
 	end
 	refresh(player, data.shopId)
@@ -242,6 +257,7 @@ function ShopService.start()
 	Remotes.ShopAction.OnServerEvent:Connect(handle)
 	Players.PlayerRemoving:Connect(function(player)
 		openShops[player] = nil
+		openAt[player] = nil
 	end)
 end
 
