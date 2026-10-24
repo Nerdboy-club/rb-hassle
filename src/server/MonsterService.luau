@@ -483,7 +483,8 @@ local function tickMonster(mon: Mon, dt: number, now: number)
 
 	-- chase: вожак ищет цель сам, волки идут за вожаком или за общей целью
 	local target = mon.target
-	if target and (now > mon.targetUntil or not characterRoot(target)) then
+	local targetProfile = target and PlayerData.get(target)
+	if target and (now > mon.targetUntil or not characterRoot(target) or not (targetProfile and targetProfile.inGame)) then
 		target = nil
 		mon.target = nil
 	end
