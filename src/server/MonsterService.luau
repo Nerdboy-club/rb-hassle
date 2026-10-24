@@ -367,14 +367,48 @@ local function nearestPlayer(from: Vector3, maxDistance: number, respectFactor: 
 	return best, bestDistance
 end
 
+local blockParams: RaycastParams?
+
+--- Мешают ли постройки (дома, деревья, камни) на пути: короткий луч на высоте груди.
+local function blocked(from: Vector3, unit: Vector3, length: number): boolean
+	if not blockParams then
+		local decor = workspace:FindFirstChild("World") and workspace.World:FindFirstChild("Decor")
+		if not decor then
+			return false
+		end
+		blockParams = RaycastParams.new()
+		blockParams.FilterType = Enum.RaycastFilterType.Include
+		blockParams.FilterDescendantsInstances = { decor }
+	end
+	return workspace:Raycast(from + Vector3.new(0, 2.5, 0), unit * length, blockParams) ~= nil
+end
+
 local function step(mon: Mon, direction: Vector3, speed: number, dt: number)
 	if direction.Magnitude < 0.01 then
 		return
 	end
-	local unit = Vector3.new(direction.X, 0, direction.Z).Unit
-	local nextPos = mon.position + unit * speed * dt
-	-- в воду не заходим
-	if groundAt(nextPos.X, nextPos.Z) < -0.8 then
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+	if flat.Magnitude < 0.01 then
+		return
+	end
+	local want = flat.Unit
+	local distance = speed * dt
+	-- если путь перегорожен — пробуем обойти слева/справа
+	local unit = want
+	local nextPos = mon.position + unit * distance
+	local found = false
+	for _, turn in { 0, 0.8, -0.8, 1.6, -1.6 } do
+		local c, s = math.cos(turn), math.sin(turn)
+		local candidate = Vector3.new(want.X * c - want.Z * s, 0, want.X * s + want.Z * c)
+		local candidatePos = mon.position + candidate * distance
+		local height = groundAt(candidatePos.X, candidatePos.Z)
+		-- в воду не заходим, на отвесные уступы не запрыгиваем
+		if height >= -0.8 and height - mon.position.Y <= 2.5 and not blocked(mon.position, candidate, distance + 3) then
+			unit, nextPos, found = candidate, candidatePos, true
+			break
+		end
+	end
+	if not found then
 		mon.wanderTo = nil
 		return
 	end
