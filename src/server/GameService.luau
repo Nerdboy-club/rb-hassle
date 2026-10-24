@@ -8,7 +8,6 @@ local Config = require(Shared.Config)
 local Cards = require(Shared.Cards)
 local Ranks = require(Shared.Ranks)
 local Remotes = require(Shared.Remotes)
-local Spells = require(Shared.Spells)
 
 local Hand = require(script.Parent.Hand)
 local PlayerData = require(script.Parent.PlayerData)
@@ -207,12 +206,7 @@ function GameService.start()
 	Players.PlayerRemoving:Connect(function(player)
 		local profile = PlayerData.get(player)
 		if profile then
-			-- карты заклинаний возвращаются в запас магазина
-			for _, entry in profile.free do
-				if Spells.get(entry.id) then
-					require(script.Parent.ShopService).restockSpell(entry.id)
-				end
-			end
+			-- карты заклинаний остаются в сохранённой книге игрока, поэтому в запас магазина их не возвращаем
 			Hand.dropAll(player)
 			PlayerData.save(player)
 		end

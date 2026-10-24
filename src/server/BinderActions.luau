@@ -10,6 +10,8 @@ local PlayerData = require(script.Parent.PlayerData)
 
 local BinderActions = {}
 
+local lastSync: { [Player]: number } = {}
+
 local function isInt(value: any): boolean
 	return type(value) == "number" and value == math.floor(value)
 end
@@ -19,7 +21,11 @@ local function handle(player: Player, data: any)
 		return
 	end
 	if data.action == "sync" then
-		PlayerData.push(player)
+		local now = os.clock()
+		if now - (lastSync[player] or 0) >= 0.5 then
+			lastSync[player] = now
+			PlayerData.push(player)
+		end
 		return
 	end
 	local profile = PlayerData.get(player)
@@ -38,6 +44,9 @@ end
 
 function BinderActions.start()
 	Remotes.BinderAction.OnServerEvent:Connect(handle)
+	game:GetService("Players").PlayerRemoving:Connect(function(player)
+		lastSync[player] = nil
+	end)
 end
 
 return BinderActions

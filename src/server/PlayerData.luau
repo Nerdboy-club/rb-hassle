@@ -164,6 +164,10 @@ function PlayerData.load(player: Player): Profile
 	end
 	local profile = deserialize(raw)
 	profiles[player] = profile
+	if not player.Parent then
+		-- игрок вышел, пока шла загрузка: освобождаем копии, чтобы лимиты карт не залипли
+		PlayerData.unload(player)
+	end
 	return profile
 end
 
