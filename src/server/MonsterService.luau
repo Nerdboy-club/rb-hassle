@@ -17,7 +17,7 @@ local WorldBuilder = require(script.Parent.WorldBuilder)
 
 local MonsterService = {}
 
-local TICK = 0.1
+local TICK = 0.05 -- 20 раз в секунду: движение плавнее
 local TREE_HITS = 4
 local TREE_WINDOW = 2.5
 local BODY_ATTACK_COOLDOWN = 1.2
