@@ -25,7 +25,8 @@ State.phase = "lobby"
 State.stance = "none"
 State.effects = {} :: { { name: string, seconds: number } }
 State.statusAt = 0
-State.changed = Instance.new("BindableEvent")
+State.changed = Instance.new("BindableEvent") -- любое изменение (снимок, фаза, статус)
+State.dataChanged = Instance.new("BindableEvent") -- только новый снимок книги
 
 function State.owns(id: number): boolean
 	local data = State.data
@@ -59,6 +60,7 @@ end
 Remotes.State.OnClientEvent:Connect(function(snapshot)
 	State.data = snapshot
 	State.receivedAt = os.clock()
+	State.dataChanged:Fire()
 	State.changed:Fire()
 end)
 

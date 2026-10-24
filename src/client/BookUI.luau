@@ -323,36 +323,54 @@ function BookUI.create(gui: ScreenGui)
 		end
 	end
 
+	-- кнопки руки обновляются на месте: пересоздание каждые полсекунды съедало нажатия
+	local handButtons: { [number]: TextButton } = {}
+	local handStrokes: { [number]: UIStroke } = {}
+	local handEmpty: TextLabel? = nil
+
 	local function renderHand()
-		clear(handRow)
 		local data = State.data
-		if not data then
-			return
+		local seen: { [number]: boolean } = {}
+		if data then
+			for order, entry in data.hand do
+				local card = Cards.get(entry.id) :: Cards.Card
+				seen[entry.uid] = true
+				local left = State.handLeft(entry)
+				local rankColor = Ranks.color(card.rank)
+				local text = ("%s %s · %d с\nвложить"):format(Cards.ICONS[card.kind] or "🎴", card.name, math.ceil(left))
+				local button = handButtons[entry.uid]
+				if not button then
+					button = Theme.button(handRow, text, UDim2.fromOffset(180, 42), nil, rankColor:Lerp(Theme.bg, 0.55))
+					button.TextSize = 12
+					handStrokes[entry.uid] = Theme.stroke(button, rankColor, 2)
+					local uid = entry.uid
+					button.Activated:Connect(function()
+						Remotes.BinderAction:FireServer({ action = "insert", uid = uid })
+					end)
+					handButtons[entry.uid] = button
+				end
+				button.Text = text
+				button.LayoutOrder = order
+				handStrokes[entry.uid].Color = left < 15 and Theme.bad or rankColor
+			end
 		end
-		if #data.hand == 0 then
-			Theme.label(handRow, "пусто — подберите предмет на острове", UDim2.fromOffset(300, 54), nil, {
+		for uid, button in handButtons do
+			if not seen[uid] then
+				button:Destroy()
+				handButtons[uid] = nil
+				handStrokes[uid] = nil
+			end
+		end
+		local empty = data ~= nil and #data.hand == 0
+		if empty and not handEmpty then
+			handEmpty = Theme.label(handRow, "пусто — подберите предмет на острове", UDim2.fromOffset(300, 54), nil, {
 				TextColor3 = Theme.muted,
 				TextYAlignment = Enum.TextYAlignment.Center,
 				TextSize = 13,
 			})
-			return
-		end
-		for _, entry in data.hand do
-			local card = Cards.get(entry.id) :: Cards.Card
-			local left = State.handLeft(entry)
-			local rankColor = Ranks.color(card.rank)
-			local button = Theme.button(
-				handRow,
-				("%s %s · %d с\nвложить"):format(Cards.ICONS[card.kind] or "🎴", card.name, math.ceil(left)),
-				UDim2.fromOffset(180, 42),
-				nil,
-				rankColor:Lerp(Theme.bg, 0.55)
-			)
-			button.TextSize = 12
-			Theme.stroke(button, left < 15 and Theme.bad or rankColor, 2)
-			button.Activated:Connect(function()
-				Remotes.BinderAction:FireServer({ action = "insert", uid = entry.uid })
-			end)
+		elseif not empty and handEmpty then
+			handEmpty:Destroy()
+			handEmpty = nil
 		end
 	end
 
@@ -496,7 +514,8 @@ function BookUI.create(gui: ScreenGui)
 		setOpen(false)
 	end)
 
-	State.changed.Event:Connect(function()
+	-- только новый снимок книги перерисовывает окно: эффекты и стойки (приходят каждые полсекунды) не должны сбрасывать прокрутку
+	State.dataChanged.Event:Connect(function()
 		if isOpen then
 			render()
 		end
