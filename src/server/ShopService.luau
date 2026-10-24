@@ -163,6 +163,7 @@ local function buy(player: Player, profile: PlayerData.Profile, shopId: string, 
 	profile.purchases[shopId] = (profile.purchases[shopId] or 0) + 1
 	if shop.spells then
 		spellStock[cardId] -= 1
+		profile.flags.boughtSpell = true
 	end
 	PlayerData.notify(player, "Куплено: " .. card.name, "good")
 end

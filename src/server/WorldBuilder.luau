@@ -493,6 +493,45 @@ local function buildLobby()
 	WorldBuilder.lobbySpawn = spawn
 end
 
+--- Вода, свет, дымка и мягкая цветокоррекция: чтобы остров выглядел живым, а не «серой коробкой».
+function WorldBuilder.styleScene()
+	terrain.WaterColor = C3(46, 140, 190)
+	terrain.WaterTransparency = 0.55
+	terrain.WaterReflectance = 0.7
+	terrain.WaterWaveSize = 0.18
+	terrain.WaterWaveSpeed = 9
+
+	Lighting.ClockTime = 14.5
+	Lighting.Brightness = 3
+	Lighting.EnvironmentDiffuseScale = 0.6
+	Lighting.EnvironmentSpecularScale = 0.5
+	Lighting.ColorShift_Top = C3(255, 238, 205)
+
+	local function effect(className: string, props: { [string]: any }): Instance
+		local existing = Lighting:FindFirstChildOfClass(className)
+		if existing then
+			existing:Destroy()
+		end
+		local instance = Instance.new(className)
+		for name, value in props do
+			(instance :: any)[name] = value
+		end
+		instance.Parent = Lighting
+		return instance
+	end
+
+	effect("Atmosphere", { Density = 0.28, Offset = 0.25, Color = C3(205, 220, 240), Decay = C3(255, 210, 170), Glare = 0.3, Haze = 1.2 })
+	effect("BloomEffect", { Intensity = 0.4, Size = 26, Threshold = 0.92 })
+	effect("SunRaysEffect", { Intensity = 0.07, Spread = 0.8 })
+	effect("ColorCorrectionEffect", { Saturation = 0.18, Contrast = 0.08, Brightness = 0.02, TintColor = C3(255, 247, 235) })
+
+	local clouds = terrain:FindFirstChildOfClass("Clouds") or Instance.new("Clouds")
+	clouds.Cover = 0.55
+	clouds.Density = 0.6
+	clouds.Color = C3(255, 255, 255)
+	clouds.Parent = terrain
+end
+
 function WorldBuilder.build()
 	world = Instance.new("Folder")
 	world.Name = "World"
@@ -504,11 +543,7 @@ function WorldBuilder.build()
 	-- мир строится после Terrain: рэйкасты по земле не должны упираться в уже построенное
 	buildTerrain()
 
-	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.25
-	atmosphere.Offset = 0.2
-	atmosphere.Color = C3(200, 215, 235)
-	atmosphere.Parent = Lighting
+	WorldBuilder.styleScene()
 
 	buildTown("Antokiba", C3(240, 220, 170), C3(180, 90, 70))
 	buildTown("Rubicuta", C3(230, 200, 190), C3(190, 50, 60))

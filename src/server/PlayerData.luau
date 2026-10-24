@@ -218,6 +218,13 @@ function PlayerData.push(player: Player)
 		curedCount += 1
 	end
 
+	local flagList = {}
+	for name, value in profile.flags do
+		if value then
+			table.insert(flagList, name)
+		end
+	end
+
 	local met = {}
 	for name in profile.met do
 		table.insert(met, name)
@@ -234,6 +241,7 @@ function PlayerData.push(player: Player)
 		case = profile.case,
 		inGame = profile.inGame,
 		cured = curedCount,
+		flags = flagList,
 	})
 end
 

@@ -9,6 +9,7 @@ local Remotes = require(Shared.Remotes)
 local BookUI = require(script.Parent.BookUI)
 local DialogUI = require(script.Parent.DialogUI)
 local Hud = require(script.Parent.Hud)
+local Effects = require(script.Parent.Effects)
 local QuizUI = require(script.Parent.QuizUI)
 local ShopUI = require(script.Parent.ShopUI)
 local State = require(script.Parent.State)
@@ -26,6 +27,44 @@ local book = BookUI.create(gui)
 DialogUI.create(gui)
 local shop = ShopUI.create(gui)
 QuizUI.create(gui)
+Effects.start()
+
+-- заставка при входе
+do
+	local TweenService = game:GetService("TweenService")
+	local splash = Instance.new("Frame")
+	splash.Size = UDim2.fromScale(1, 1)
+	splash.BackgroundColor3 = Color3.fromRGB(10, 12, 20)
+	splash.BorderSizePixel = 0
+	splash.ZIndex = 100
+	splash.Parent = gui
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.fromScale(1, 0.2)
+	title.Position = UDim2.fromScale(0, 0.38)
+	title.BackgroundTransparency = 1
+	title.Text = "GREED ISLAND"
+	title.Font = Enum.Font.GothamBlack
+	title.TextSize = 64
+	title.TextColor3 = Color3.fromRGB(255, 215, 110)
+	title.ZIndex = 101
+	title.Parent = splash
+	local subtitle = title:Clone()
+	subtitle.Position = UDim2.fromScale(0, 0.52)
+	subtitle.Size = UDim2.fromScale(1, 0.08)
+	subtitle.Text = "Соберите все 100 карт"
+	subtitle.Font = Enum.Font.GothamMedium
+	subtitle.TextSize = 24
+	subtitle.TextColor3 = Color3.fromRGB(200, 208, 230)
+	subtitle.Parent = splash
+	task.delay(2.6, function()
+		local info = TweenInfo.new(1)
+		TweenService:Create(splash, info, { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(title, info, { TextTransparency = 1 }):Play()
+		TweenService:Create(subtitle, info, { TextTransparency = 1 }):Play()
+		task.wait(1)
+		splash:Destroy()
+	end)
+end
 
 local function toggleStance(name: string)
 	Remotes.Stance:FireServer(State.stance == name and "none" or name)

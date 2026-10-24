@@ -8,6 +8,7 @@ local Config = require(Shared.Config)
 local Ranks = require(Shared.Ranks)
 local Remotes = require(Shared.Remotes)
 local Util = require(Shared.Util)
+local Zones = require(Shared.Zones)
 
 local CardView = require(script.Parent.CardView)
 local State = require(script.Parent.State)
@@ -54,7 +55,7 @@ function BookUI.create(gui: ScreenGui)
 	local closeButton = Theme.button(root, "✕", UDim2.fromOffset(36, 32), UDim2.new(1, -50, 0, 10), Theme.panelLight)
 
 	-- вкладки
-	local tabsFrame = Theme.frame(root, UDim2.fromOffset(520, 30), UDim2.new(1, -600, 0, 10), Theme.bg)
+	local tabsFrame = Theme.frame(root, UDim2.fromOffset(560, 30), UDim2.new(1, -620, 0, 10), Theme.bg)
 	tabsFrame.BackgroundTransparency = 1
 	local tabsLayout = Instance.new("UIListLayout")
 	tabsLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -220,6 +221,9 @@ function BookUI.create(gui: ScreenGui)
 		return button
 	end
 
+	local renderMap: () -> ()
+	local renderRanks: (any) -> ()
+
 	local function renderGrid()
 		clear(scroll)
 		local data = State.data
@@ -282,6 +286,10 @@ function BookUI.create(gui: ScreenGui)
 					button.LayoutOrder = index
 				end
 			end
+		elseif tab == "map" then
+			renderMap()
+		elseif tab == "ranks" then
+			renderRanks(data)
 		elseif tab == "players" then
 			local lines = { ("Встречено игроков: %d"):format(#data.met), "" }
 			for _, name in data.met do
@@ -348,6 +356,77 @@ function BookUI.create(gui: ScreenGui)
 		end
 	end
 
+	local mapMarker: Frame? = nil
+	local MAP_SIZE = 500
+	local MAP_SCALE = MAP_SIZE / 1900
+
+	local function mapPosition(x: number, z: number): UDim2
+		return UDim2.fromOffset(MAP_SIZE / 2 + x * MAP_SCALE, MAP_SIZE / 2 + z * MAP_SCALE)
+	end
+
+	renderMap = function()
+		local holder = Theme.frame(scroll, UDim2.fromOffset(MAP_SIZE, MAP_SIZE), UDim2.fromOffset(10, 0), Color3.fromRGB(46, 120, 170))
+		Theme.corner(holder, MAP_SIZE / 2)
+		local island = Theme.frame(holder, UDim2.fromOffset(1760 * MAP_SCALE, 1760 * MAP_SCALE), UDim2.fromOffset(MAP_SIZE / 2, MAP_SIZE / 2), Color3.fromRGB(120, 190, 100))
+		island.AnchorPoint = Vector2.new(0.5, 0.5)
+		Theme.corner(island, MAP_SIZE)
+		for key, zone in Zones do
+			if key ~= "Coast" then
+				local size = zone.r * 2 * MAP_SCALE
+				local disc = Theme.frame(holder, UDim2.fromOffset(size, size), mapPosition(zone.x, zone.z), zone.color)
+				disc.AnchorPoint = Vector2.new(0.5, 0.5)
+				disc.BackgroundTransparency = zone.kind == "town" and 0.1 or 0.55
+				Theme.corner(disc, size)
+				local short = string.split(zone.name, " — ")[1]
+				local label = Theme.label(holder, short, UDim2.fromOffset(110, 14), mapPosition(zone.x, zone.z), {
+					TextSize = 10,
+					Font = Enum.Font.GothamBold,
+					TextXAlignment = Enum.TextXAlignment.Center,
+					TextYAlignment = Enum.TextYAlignment.Center,
+					TextStrokeTransparency = 0.4,
+				})
+				label.AnchorPoint = Vector2.new(0.5, 0.5)
+				label.ZIndex = 3
+			end
+		end
+		local marker = Theme.frame(holder, UDim2.fromOffset(12, 12), mapPosition(0, 0), Theme.bad)
+		marker.AnchorPoint = Vector2.new(0.5, 0.5)
+		marker.ZIndex = 5
+		Theme.corner(marker, 6)
+		Theme.stroke(marker, Color3.fromRGB(255, 255, 255), 2)
+		mapMarker = marker
+		scroll.CanvasSize = UDim2.fromOffset(0, MAP_SIZE + 10)
+	end
+
+	renderRanks = function(data: any)
+		local layout = Instance.new("UIListLayout")
+		layout.Padding = UDim.new(0, 8)
+		layout.Parent = scroll
+		Theme.label(scroll, "Прогресс по рангам", UDim2.new(1, -12, 0, 24), nil, { Font = Enum.Font.GothamBold, TextSize = 17 })
+		for _, rank in Ranks.order do
+			local total, owned = 0, 0
+			for _, id in Cards.numberedIds do
+				local card = Cards.get(id) :: Cards.Card
+				if card.rank == rank then
+					total += 1
+					if table.find(data.slots, id) then
+						owned += 1
+					end
+				end
+			end
+			local row = Theme.frame(scroll, UDim2.new(1, -12, 0, 30), nil, Theme.panelLight)
+			Theme.corner(row, 8)
+			local fill = Theme.frame(row, UDim2.fromScale(total > 0 and owned / total or 0, 1), nil, Ranks.color(rank))
+			fill.BackgroundTransparency = 0.35
+			Theme.corner(fill, 8)
+			Theme.label(row, ("%s   %d / %d   ·   лимит копий на сервере: %d"):format(rank, owned, total, Ranks.limit(rank)), UDim2.new(1, -16, 1, 0), UDim2.fromOffset(10, 0), {
+				TextYAlignment = Enum.TextYAlignment.Center,
+				Font = Enum.Font.GothamMedium,
+				TextSize = 13,
+			})
+		end
+	end
+
 	local tabButtons: { [string]: TextButton } = {}
 
 	local function renderTabs()
@@ -355,6 +434,8 @@ function BookUI.create(gui: ScreenGui)
 		local list = {
 			{ id = "slots", label = "Карты" },
 			{ id = "free", label = "Свободные" },
+			{ id = "map", label = "Карта" },
+			{ id = "ranks", label = "Ранги" },
 			{ id = "players", label = "Игроки" },
 			{ id = "help", label = "Справка" },
 		}
@@ -366,7 +447,7 @@ function BookUI.create(gui: ScreenGui)
 		end
 		table.clear(tabButtons)
 		for index, entry in list do
-			local button = Theme.button(tabsFrame, entry.label, UDim2.fromOffset(96, 30), nil, tab == entry.id and Theme.accent or Theme.panelLight)
+			local button = Theme.button(tabsFrame, entry.label, UDim2.fromOffset(78, 30), nil, tab == entry.id and Theme.accent or Theme.panelLight)
 			button.LayoutOrder = index
 			button.TextColor3 = tab == entry.id and Color3.fromRGB(10, 18, 26) or Theme.text
 			button.Activated:Connect(function()
@@ -428,6 +509,14 @@ function BookUI.create(gui: ScreenGui)
 		if isOpen and accumulator >= 0.5 then
 			accumulator = 0
 			renderHand()
+			if tab == "map" and mapMarker then
+				local character = game:GetService("Players").LocalPlayer.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				if root then
+					local position = (root :: BasePart).Position
+					mapMarker.Position = mapPosition(position.X, position.Z)
+				end
+			end
 		end
 	end)
 

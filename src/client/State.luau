@@ -14,6 +14,7 @@ export type Snapshot = {
 	case: { number },
 	inGame: boolean,
 	cured: number,
+	flags: { string },
 }
 
 local State = {}
@@ -40,6 +41,10 @@ function State.owns(id: number): boolean
 		end
 	end
 	return false
+end
+
+function State.hasFlag(name: string): boolean
+	return State.data ~= nil and table.find(State.data.flags or {}, name) ~= nil
 end
 
 function State.ownsSlot(id: number): boolean

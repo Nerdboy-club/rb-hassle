@@ -82,11 +82,96 @@ function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
 	handLayout.Parent = handFrame
 
 	-- ===== эффекты =====
-	local effectsLabel = Theme.label(gui, "", UDim2.fromOffset(240, 120), UDim2.new(1, -254, 0, 90), {
+	local effectsLabel = Theme.label(gui, "", UDim2.fromOffset(240, 120), UDim2.new(1, -254, 0, 116), {
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextSize = 13,
 		TextColor3 = Theme.accent,
 	})
+
+	-- ===== цели: ведут новичка по игре =====
+	local goals = Theme.frame(gui, UDim2.fromOffset(270, 96), UDim2.new(1, -284, 0, 12), Theme.bg)
+	goals.BackgroundTransparency = 0.18
+	Theme.corner(goals, 10)
+	Theme.stroke(goals, Theme.panelLight, 1)
+	Theme.padding(goals, 8)
+	local goalsLabel = Theme.label(goals, "", UDim2.fromScale(1, 1), nil, { TextSize = 13 })
+
+	local OBJECTIVES = {
+		{ text = "Поговорите с Этой у Дерева Шисо (E)", done = function(d) return State.hasFlag("metEta") end },
+		{ text = "Подберите предмет (E) и вложите карту в книгу за минуту (B)", done = function(d) return #d.slots >= 2 end },
+		{ text = "Победите монстра: бейте его (ЛКМ), и выпадет карта", done = function(d) return State.hasFlag("firstMonster") end },
+		{ text = "Соберите 10 карт", done = function(d) return #d.slots >= 10 end },
+		{ text = "Купите заклинание в Масадоре", done = function(d) return State.hasFlag("boughtSpell") end },
+		{ text = "Соберите 50 карт", done = function(d) return #d.slots >= 50 end },
+		{ text = "Вылечите жителей деревни горных бандитов («Лекарство» — в Wig & Pen)", done = function(d) return State.hasFlag("bandits") end },
+		{ text = "Соберите 99 карт и пройдите викторину Двана в Лимейро", done = function(d) return d.won end },
+		{ text = "Купите или выбейте билет в порту и выйдите через башню Елены", done = function(d) return false end },
+	}
+
+	local function refreshGoals()
+		local data = State.data
+		if not data or State.phase == "lobby" then
+			goals.Visible = false
+			return
+		end
+		goals.Visible = true
+		local lines = { "ЦЕЛИ" }
+		local shown = 0
+		for _, objective in OBJECTIVES do
+			if not objective.done(data) then
+				shown += 1
+				table.insert(lines, "• " .. objective.text)
+				if shown >= 3 then
+					break
+				end
+			end
+		end
+		goalsLabel.Text = table.concat(lines, "\n")
+	end
+
+	-- ===== экран победы =====
+	local winOverlay = Theme.frame(gui, UDim2.fromScale(1, 1), nil, Color3.fromRGB(0, 0, 0))
+	winOverlay.BackgroundTransparency = 1
+	winOverlay.Visible = false
+	winOverlay.ZIndex = 40
+	local winTitle = Theme.label(winOverlay, "ПОБЕДА", UDim2.fromScale(1, 0.2), UDim2.fromScale(0, 0.32), {
+		Font = Enum.Font.GothamBlack,
+		TextSize = 72,
+		TextColor3 = Theme.gold,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		TextTransparency = 1,
+	})
+	winTitle.ZIndex = 41
+	local winSub = Theme.label(winOverlay, "Все 100 слотов заполнены. Greed Island пройден.", UDim2.fromScale(1, 0.1), UDim2.fromScale(0, 0.52), {
+		Font = Enum.Font.GothamMedium,
+		TextSize = 24,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextTransparency = 1,
+	})
+	winSub.ZIndex = 41
+
+	local wasWon: boolean? = nil
+	local function checkWin()
+		local data = State.data
+		if not data then
+			return
+		end
+		if wasWon == false and data.won then
+			winOverlay.Visible = true
+			TweenService:Create(winOverlay, TweenInfo.new(0.8), { BackgroundTransparency = 0.45 }):Play()
+			TweenService:Create(winTitle, TweenInfo.new(0.8), { TextTransparency = 0 }):Play()
+			TweenService:Create(winSub, TweenInfo.new(0.8), { TextTransparency = 0 }):Play()
+			task.delay(6, function()
+				TweenService:Create(winOverlay, TweenInfo.new(1), { BackgroundTransparency = 1 }):Play()
+				TweenService:Create(winTitle, TweenInfo.new(1), { TextTransparency = 1 }):Play()
+				TweenService:Create(winSub, TweenInfo.new(1), { TextTransparency = 1 }):Play()
+				task.wait(1)
+				winOverlay.Visible = false
+			end)
+		end
+		wasWon = data.won
+	end
 
 	-- ===== уведомления =====
 	local toasts = Theme.frame(gui, UDim2.fromOffset(520, 220), UDim2.new(0.5, 0, 0, 14), Theme.bg)
@@ -180,8 +265,13 @@ function Hud.create(gui: ScreenGui, actions: { [string]: () -> () })
 			button.TextColor3 = active and Color3.fromRGB(10, 18, 26) or Theme.text
 		end
 	end
-	State.changed.Event:Connect(refresh)
+	State.changed.Event:Connect(function()
+		refresh()
+		refreshGoals()
+		checkWin()
+	end)
 	refresh()
+	refreshGoals()
 
 	-- ===== периодические обновления: рука, эффекты, зона =====
 	local lastZone: string? = nil

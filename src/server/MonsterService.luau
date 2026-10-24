@@ -239,6 +239,7 @@ local function capture(mon: Mon, player: Player)
 
 	local profile = PlayerData.get(player)
 	if profile then
+		profile.flags.firstMonster = true
 		local reward = math.floor(def.hp * 0.5)
 		profile.yen += reward
 		if #drops > 0 then
