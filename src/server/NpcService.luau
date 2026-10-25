@@ -782,7 +782,7 @@ function NpcService.start()
 		local scale = npc.scale or 1
 		local position = WorldBuilder.zonePoint(npc.zone, npc.dx, npc.dz)
 		local zone = Zones[npc.zone]
-		local model = RigBuilder.build(npc.name, npc.shirt, npc.skin, scale)
+		local model = RigBuilder.build(npc.name, npc.shirt, npc.skin, scale, npc.role)
 		local lookAt = Vector3.new(zone.x, position.Y, zone.z + 60)
 		RigBuilder.place(model, position, position.Y, lookAt, scale)
 		model.Parent = folder
