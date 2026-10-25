@@ -62,6 +62,18 @@ function GameService.enterGame(player: Player)
 		return
 	end
 	profile.inGame = true
+	if RunService:IsStudio() and Config.DevGiveAllSpells then
+		local owned = {}
+		for _, entry in profile.free do
+			owned[entry.id] = true
+		end
+		local Binder = require(script.Parent.Binder)
+		for _, id in Cards.spellIds do
+			if not owned[id] then
+				Binder.grant(player, id)
+			end
+		end
+	end
 	player.RespawnLocation = WorldBuilder.spawnPad
 	teleport(player, WorldBuilder.spawnPad)
 	Remotes.Phase:FireClient(player, profile.won and "win" or "game")

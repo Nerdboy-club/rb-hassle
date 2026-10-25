@@ -137,11 +137,11 @@ local function buildTerrain()
 	terrain:Clear()
 	terrain:FillCylinder(CFrame.new(0, -9, 0), 14, 1600, Enum.Material.Water)
 	terrain:FillCylinder(CFrame.new(0, -10.5, 0), 19, 930, Enum.Material.Sand)
-	terrain:FillCylinder(CFrame.new(0, -10, 0), 20, 880, Enum.Material.Grass)
+	terrain:FillCylinder(CFrame.new(0, -11, 0), 20, 880, Enum.Material.Grass) -- верх на 1 stud ниже: постройки не тонут в траве
 
 	for key, zone in Zones do
 		if key ~= "Coast" and zone.ground then
-			terrain:FillCylinder(CFrame.new(zone.x, -10, zone.z), 20, zone.r * 0.95, zone.ground)
+			terrain:FillCylinder(CFrame.new(zone.x, -11, zone.z), 20, zone.r * 0.95, zone.ground)
 		end
 	end
 
@@ -171,7 +171,7 @@ local function buildTerrain()
 		local angle = index * 1.05
 		local px = swamp.x + math.cos(angle) * (30 + index * 9)
 		local pz = swamp.z + math.sin(angle) * (30 + index * 9)
-		terrain:FillCylinder(CFrame.new(px, -2, pz), 4, rng:NextInteger(9, 14), Enum.Material.Water)
+		terrain:FillCylinder(CFrame.new(px, -3, pz), 4, rng:NextInteger(9, 14), Enum.Material.Water)
 	end
 end
 
@@ -209,6 +209,8 @@ end
 
 local function house(center: Vector3, width: number, depth: number, height: number, wall: Color3, roof: Color3, yaw: number)
 	local frame = CFrame.new(center) * CFrame.Angles(0, yaw, 0)
+	-- каменный цоколь: уходит глубоко под землю, поэтому дом не «проваливается» на неровном рельефе
+	newPart(decor, "Foundation", V3(width + 1.2, 4, depth + 1.2), frame * CFrame.new(0, -1.6, 0), C3(120, 118, 112), Enum.Material.Cobblestone)
 	newPart(decor, "Wall", V3(width, height, depth), frame * CFrame.new(0, height / 2, 0), wall, Enum.Material.Brick)
 	newPart(decor, "Roof", V3(width + 2, 1.4, depth + 2), frame * CFrame.new(0, height + 0.7, 0), roof, Enum.Material.Slate)
 	local door = newPart(decor, "Door", V3(3, 5.5, 0.4), frame * CFrame.new(0, 2.75, depth / 2 + 0.1), C3(80, 55, 40), Enum.Material.Wood)
@@ -662,7 +664,7 @@ local function fenceTown(zoneKey: string, color: Color3)
 		end
 		local x, z = zone.x + math.cos(angle) * radius, zone.z + math.sin(angle) * radius
 		local point = V3(x, WorldBuilder.terrainY(x, z), z)
-		if open or point.Y < -0.5 then
+		if open or point.Y < -1.5 then
 			previous = nil
 		else
 			newPart(decor, "FencePost", V3(0.7, 3.4, 0.7), CFrame.new(point + V3(0, 1.7, 0)), color, Enum.Material.Wood)

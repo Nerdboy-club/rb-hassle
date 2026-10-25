@@ -4,6 +4,7 @@ return {
 	NumberedSlots = 100, -- «указанные» слоты книги
 	FreeSlots = 45, -- свободные слоты
 	StartYen = 3000,
+	DevGiveAllSpells = true, -- только в Studio: при входе в игру в свободные слоты кладутся все 40 заклинаний (для проверки)
 
 	PickupRespawnSeconds = 75, -- дольше, чтобы предметы нельзя было быстро фармить на продажу
 	PickupHoldSeconds = 0.5,
