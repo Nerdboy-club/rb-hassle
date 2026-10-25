@@ -57,7 +57,7 @@ local function findSpot(zoneKey: string): Vector3
 		local y = WorldBuilder.terrainY(candidate.X, candidate.Z)
 		point = Vector3.new(candidate.X, y + 1.6, candidate.Z)
 		-- в воду и в стены не кладём
-		if y > -1.5 and y < 8 and WorldBuilder.isFree(point, 3) then
+		if y > -0.8 and y < 9 and WorldBuilder.isFree(point, 3) then
 			return point
 		end
 	end

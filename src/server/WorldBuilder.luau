@@ -89,17 +89,11 @@ end
 --- Высота земли (только Terrain: ray игнорирует всё, что построено в world).
 local terrainOnly: RaycastParams?
 
--- Города стоят на ровных дисках-полах (см. buildTownFloors): их высота известна точно, а не берётся лучом по террейну
-local TOWN_TOP = 1.0
-local townDiscs: { { x: number, z: number, r: number } } = {}
+-- Текстуры террейна выступают над его физической поверхностью: всё, что стоит на земле, ставим чуть выше,
+-- чтобы дома, предметы и деревья не тонули. Единая высота для всего мира.
+local GROUND_LIFT = 0.9
 
 function WorldBuilder.terrainY(x: number, z: number): number
-	for _, disc in townDiscs do
-		local dx, dz = x - disc.x, z - disc.z
-		if dx * dx + dz * dz < disc.r * disc.r then
-			return TOWN_TOP
-		end
-	end
 	-- только Terrain: не цепляем игроков, NPC, монстров и постройки
 	if not terrainOnly then
 		terrainOnly = RaycastParams.new()
@@ -107,7 +101,7 @@ function WorldBuilder.terrainY(x: number, z: number): number
 		terrainOnly.FilterDescendantsInstances = { terrain }
 	end
 	local hit = workspace:Raycast(V3(x, 400, z), V3(0, -800, 0), terrainOnly)
-	return hit and hit.Position.Y or 0
+	return (hit and hit.Position.Y or 0) + GROUND_LIFT
 end
 
 local decorOnly: RaycastParams?
@@ -151,9 +145,7 @@ local function buildTerrain()
 
 	for key, zone in Zones do
 		if key ~= "Coast" and zone.ground then
-			-- города на 1.5 stud выше окружающей травы: пол всегда выше травы, постройки не тонут
-			local lift = zone.kind == "town" and 1.5 or 0
-			terrain:FillCylinder(CFrame.new(zone.x, -11 + lift, zone.z), 20, zone.r * 0.95, zone.ground)
+			terrain:FillCylinder(CFrame.new(zone.x, -11, zone.z), 20, zone.r * 0.95, zone.ground)
 		end
 	end
 
@@ -184,45 +176,6 @@ local function buildTerrain()
 		local px = swamp.x + math.cos(angle) * (30 + index * 9)
 		local pz = swamp.z + math.sin(angle) * (30 + index * 9)
 		terrain:FillCylinder(CFrame.new(px, -3, pz), 4, rng:NextInteger(9, 14), Enum.Material.Water)
-	end
-end
-
---- Ровные полы городов: диск выше террейна, поэтому постройки не «тонут» в текстуре.
---- Два уступа (-1 трава → 0 → 1 пол) вместо одной ступеньки.
-local FLOOR_COLORS: { [Enum.Material]: Color3 } = {
-	[Enum.Material.Grass] = C3(96, 152, 78),
-	[Enum.Material.LeafyGrass] = C3(86, 140, 66),
-	[Enum.Material.Slate] = C3(92, 96, 108),
-	[Enum.Material.Sand] = C3(214, 196, 150),
-	[Enum.Material.Cobblestone] = C3(134, 132, 128),
-	[Enum.Material.Ground] = C3(120, 96, 70),
-}
-
-local function buildTownFloors()
-	local floors = Instance.new("Folder")
-	floors.Name = "TownFloors"
-	floors.Parent = workspace
-	for _, zone in Zones do
-		if zone.kind == "town" and zone.ground then
-			local radius = zone.r * 0.95
-			local material = zone.ground :: Enum.Material
-			local color = FLOOR_COLORS[material] or C3(120, 120, 120)
-			for _, tier in { { radius + 10, 0 }, { radius, TOWN_TOP } } do
-				local thickness = 6
-				local disc = newPart(
-					floors,
-					"TownFloor",
-					V3(thickness, tier[1] * 2, tier[1] * 2),
-					CFrame.new(zone.x, tier[2] - thickness / 2, zone.z) * CFrame.Angles(0, 0, math.pi / 2),
-					color,
-					material,
-					Enum.PartType.Cylinder
-				)
-				disc.CanCollide = true
-				disc.CanQuery = true
-			end
-			table.insert(townDiscs, { x = zone.x, z = zone.z, r = radius })
-		end
 	end
 end
 
@@ -715,7 +668,7 @@ local function fenceTown(zoneKey: string, color: Color3)
 		end
 		local x, z = zone.x + math.cos(angle) * radius, zone.z + math.sin(angle) * radius
 		local point = V3(x, WorldBuilder.terrainY(x, z), z)
-		if open or point.Y < -1.5 then
+		if open or point.Y < -0.8 then
 			previous = nil
 		else
 			newPart(decor, "FencePost", V3(0.7, 3.4, 0.7), CFrame.new(point + V3(0, 1.7, 0)), color, Enum.Material.Wood)
@@ -809,6 +762,9 @@ function WorldBuilder.styleScene()
 	terrain.WaterWaveSize = 0.18
 	terrain.WaterWaveSpeed = 9
 	pcall(function()
+		game:GetService("MaterialService").Use2022Materials = false -- без выпуклых текстур: поверхность ровная
+	end)
+	pcall(function()
 		terrain.Decoration = false -- без объёмной «травы» террейна: колючие пучки торчали выше пола
 	end)
 
@@ -853,7 +809,6 @@ function WorldBuilder.build()
 
 	-- мир строится после Terrain: рэйкасты по земле не должны упираться в уже построенное
 	buildTerrain()
-	buildTownFloors()
 
 	WorldBuilder.styleScene()
 
