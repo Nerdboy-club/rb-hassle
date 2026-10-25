@@ -134,7 +134,32 @@ local function sendAttack(direction: Vector3)
 	end
 end
 
---- Удар в точку экрана (мышь): луч от камеры, направление от персонажа.
+--- Ближайший монстр в конусе вокруг направления aim (помощь в прицеливании).
+local function monsterNear(origin: Vector3, aim: Vector3, maxDistance: number, minDot: number): Vector3?
+	local best: Vector3? = nil
+	local bestScore = math.huge
+	local world = workspace:FindFirstChild("World")
+	local monsters = world and world:FindFirstChild("Monsters")
+	if monsters then
+		for _, model in monsters:GetChildren() do
+			local part = model:FindFirstChild("Root") :: BasePart?
+			if part then
+				local offset = part.Position + Vector3.new(0, 2, 0) - origin
+				local distance = offset.Magnitude
+				if distance < maxDistance and distance > 0.1 and offset.Unit:Dot(aim) > minDot then
+					local score = distance * (2 - offset.Unit:Dot(aim))
+					if score < bestScore then
+						bestScore = score
+						best = offset
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
+--- Удар в точку экрана (мышь): луч от камеры, направление от персонажа, с помощью прицела.
 local function attackAt(location: Vector2)
 	local camera = workspace.CurrentCamera
 	local character = player.Character
@@ -148,7 +173,17 @@ local function attackAt(location: Vector2)
 	params.FilterDescendantsInstances = { character :: Instance }
 	local hit = workspace:Raycast(ray.Origin, ray.Direction * 300, params)
 	local target = hit and hit.Position or (ray.Origin + ray.Direction * 40)
-	sendAttack(target - ((root :: BasePart).Position + Vector3.new(0, 1.5, 0)))
+	local origin = (root :: BasePart).Position + Vector3.new(0, 1.5, 0)
+	local aim = target - origin
+	if aim.Magnitude < 0.1 then
+		aim = (root :: BasePart).CFrame.LookVector
+	end
+	-- курсор точно на монстре: бьём именно туда (слабые места); иначе помощь прицела
+	if hit and hit.Instance:FindFirstAncestor("Monsters") then
+		sendAttack(aim)
+		return
+	end
+	sendAttack(monsterNear(origin, aim.Unit, 24, 0.8) or aim)
 end
 
 --- Удар кнопкой на телефоне: в ближайшего монстра впереди, иначе туда, куда смотрит персонаж.
@@ -160,27 +195,7 @@ local function attackForward()
 	end
 	local origin = root.Position + Vector3.new(0, 1.5, 0)
 	local look = root.CFrame.LookVector
-	local best: Vector3? = nil
-	local bestScore = math.huge
-	local world = workspace:FindFirstChild("World")
-	local monsters = world and world:FindFirstChild("Monsters")
-	if monsters then
-		for _, model in monsters:GetChildren() do
-			local part = model:FindFirstChild("Root") :: BasePart?
-			if part then
-				local offset = part.Position + Vector3.new(0, 2, 0) - origin
-				local distance = offset.Magnitude
-				if distance < 24 and distance > 0.1 and offset.Unit:Dot(look) > 0.2 then
-					local score = distance * (2 - offset.Unit:Dot(look))
-					if score < bestScore then
-						bestScore = score
-						best = offset
-					end
-				end
-			end
-		end
-	end
-	sendAttack(best or look)
+	sendAttack(monsterNear(origin, look, 24, 0.2) or look)
 end
 
 if TouchControls.isTouchDevice() then
@@ -203,6 +218,7 @@ if TouchControls.isTouchDevice() then
 	end)
 end
 -- ===== горячие клавиши =====
+local mouseHeld = false
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then
 		return
@@ -210,13 +226,13 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if State.phase == "lobby" then
 		return
 	end
-	if input.KeyCode == Enum.KeyCode.B then
+	if input.KeyCode == Enum.KeyCode.Tab then
 		book.toggle()
 	elseif input.KeyCode == Enum.KeyCode.G then
 		book.open("gain")
 	elseif input.KeyCode == Enum.KeyCode.T then
 		toggleStance("ten")
-	elseif input.KeyCode == Enum.KeyCode.Z then
+	elseif input.KeyCode == Enum.KeyCode.Y then
 		toggleStance("zetsu")
 	elseif input.KeyCode == Enum.KeyCode.Escape and shop.isOpen() then
 		shop.close()
@@ -224,8 +240,19 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		if book.isOpen() or shop.isOpen() then
 			return
 		end
-		local location = UserInputService:GetMouseLocation()
-		attackAt(location)
+		mouseHeld = true
+		task.spawn(function()
+			while mouseHeld and not (book.isOpen() or shop.isOpen()) do
+				attackAt(UserInputService:GetMouseLocation())
+				task.wait(0.15)
+			end
+		end)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		mouseHeld = false
 	end
 end)
 

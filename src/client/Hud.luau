@@ -75,10 +75,10 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 		button.Activated:Connect(callback)
 		return button
 	end
-	ringButton("📖 Книга  [B]", "B", actions.book)
+	ringButton("📖 Книга  [Tab]", "B", actions.book)
 	ringButton("✨ Приращение  [G]", "G", actions.gain)
 	stanceButtons.ten = ringButton("🛡 Тен  [T]", "T", actions.ten)
-	stanceButtons.zetsu = ringButton("🌫 Зетсу  [Z]", "Z", actions.zetsu)
+	stanceButtons.zetsu = ringButton("🌫 Зетсу  [Y]", "Z", actions.zetsu)
 	local commandBox = Instance.new("TextBox")
 	commandBox.Size = UDim2.new(1, 0, 0, 34)
 	commandBox.BackgroundColor3 = Theme.panel
@@ -125,7 +125,7 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 
 	local OBJECTIVES = {
 		{ text = "Поговорите с Этой у Дерева Шисо (E)", done = function(d) return State.hasFlag("metEta") end, target = function() return Guide.npcPosition("eta") end, title = "Эта" },
-		{ text = "Подберите предмет (E) и вложите карту в книгу за минуту (B)", done = function(d) return #d.slots >= 2 end },
+		{ text = "Подберите предмет (E) и вложите карту в книгу за минуту (Tab)", done = function(d) return #d.slots >= 2 end },
 		{ text = "Победите монстра: бейте его (ЛКМ), и выпадет карта", done = function(d) return State.hasFlag("firstMonster") end, target = function() return Guide.nearestMonster(State.playerPosition()) end, title = "Монстр" },
 		{ text = "Соберите 10 карт", done = function(d) return #d.slots >= 10 end },
 		{ text = "Купите заклинание в Масадоре", done = function(d) return State.hasFlag("boughtSpell") end, target = function() return Guide.npcPosition("shop_spells") end, title = "Магазин спеллов" },
