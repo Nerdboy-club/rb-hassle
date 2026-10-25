@@ -13,6 +13,7 @@ local Zones = require(Shared.Zones)
 local CardView = require(script.Parent.CardView)
 local State = require(script.Parent.State)
 local Theme = require(script.Parent.Theme)
+local BookModel = require(script.Parent.BookModel)
 
 local BookUI = {}
 
@@ -499,12 +500,23 @@ function BookUI.create(gui: ScreenGui)
 	end
 
 	local function setOpen(open: boolean)
+		if open == isOpen then
+			return
+		end
 		isOpen = open
-		root.Visible = open
 		if open then
+			-- сначала из вспышки появляется книга, затем раскрывается окно
+			pcall(BookModel.show)
 			Remotes.BinderAction:FireServer({ action = "sync" })
 			render()
+			task.delay(BookModel.openSeconds * 0.8, function()
+				if isOpen then
+					root.Visible = true
+				end
+			end)
 		else
+			root.Visible = false
+			pcall(BookModel.hide)
 			confirm.Visible = false
 			mode = "normal"
 		end
