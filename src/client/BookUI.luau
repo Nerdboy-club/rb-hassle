@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local CardUse = require(Shared.CardUse)
 local Cards = require(Shared.Cards)
 local Config = require(Shared.Config)
 local Ranks = require(Shared.Ranks)
@@ -188,7 +189,7 @@ function BookUI.create(gui: ScreenGui)
 				)
 			end)
 		end
-		if card.kind ~= "wallet" and card.id ~= Cards.BLESSING_ID then
+		if card.kind ~= "wallet" and card.id ~= Cards.BLESSING_ID and CardUse.usable(card) then
 			local gainColor = mode == "gain" and Theme.gold or Theme.panelLight
 			local button = action(card.spell and "✨ Использовать заклинание" or "✨ Получить", gainColor, function()
 				local text = card.spell and ("Прочитать заклинание «%s»? Карта израсходуется."):format(card.name)

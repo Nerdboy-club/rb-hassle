@@ -2,6 +2,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local CardUse = require(Shared.CardUse)
 local Cards = require(Shared.Cards)
 local Ranks = require(Shared.Ranks)
 
@@ -50,7 +51,7 @@ function CardView.big(parent: Instance, id: number, owned: boolean, size: UDim2?
 
 	-- иллюстрация с зеленовато-синим оттенком, как на оригинальных картах
 	local tint = owned and Color3.fromRGB(34, 110, 100):Lerp(rankColor, 0.25) or Color3.fromRGB(38, 40, 52)
-	local art = Theme.frame(frame, UDim2.new(1, -16, 0, 130), UDim2.fromOffset(8, 36), tint)
+	local art = Theme.frame(frame, UDim2.new(1, -16, 0, 100), UDim2.fromOffset(8, 36), tint)
 	Theme.corner(art, 4)
 	Theme.stroke(art, WHITE, 1)
 	local shine = Instance.new("UIGradient")
@@ -64,11 +65,13 @@ function CardView.big(parent: Instance, id: number, owned: boolean, size: UDim2?
 	})
 
 	-- нижняя красная панель с описанием
-	local desc = Theme.frame(frame, UDim2.new(1, -16, 1, -176), UDim2.fromOffset(8, 168), Color3.fromRGB(122, 26, 34))
+	local desc = Theme.frame(frame, UDim2.new(1, -16, 1, -146), UDim2.fromOffset(8, 138), Color3.fromRGB(122, 26, 34))
 	Theme.corner(desc, 4)
 	Theme.stroke(desc, WHITE, 1)
 	Theme.padding(desc, 6)
-	Theme.label(desc, owned and card.desc or "Карты нет в книге. Найдите предмет и превратите его в карту.", UDim2.fromScale(1, 1), nil, {
+	local useLine = CardUse.describe(card)
+	local body = card.desc .. "\n\n▶ Получить: " .. (useLine or "эффекта нет — коллекционная карта, её нужно просто собрать.")
+	Theme.label(desc, owned and body or "Карты нет в книге. Найдите предмет и превратите его в карту.", UDim2.fromScale(1, 1), nil, {
 		TextSize = 11,
 		TextColor3 = WHITE,
 	})

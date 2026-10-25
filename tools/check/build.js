@@ -17,7 +17,7 @@ const embed = (modules) =>
 		.map(([name, file]) => `SOURCES.${name} = [==[\n${fs.readFileSync(root + file + ".luau", "utf8")}\n]==]\n`)
 		.join("");
 
-// 1) целостность данных: 100 карт, 40 заклинаний, ссылки на зоны/монстров/лавки
+// 1) целостность данных: 100 карт, 32 заклинания, ссылки на зоны/монстров/лавки
 const dataModules = {};
 for (const name of ["Cards", "Ranks", "Zones", "Monsters", "Npcs", "Spells", "Quiz", "Util", "Config"]) {
 	dataModules[name] = "shared/" + name;
@@ -32,6 +32,7 @@ const logicModules = {
 	Config: "shared/Config",
 	Cards: "shared/Cards",
 	Spells: "shared/Spells",
+	CardUse: "shared/CardUse",
 	Ranks: "shared/Ranks",
 	CardRegistry: "server/CardRegistry",
 	PlayerData: "server/PlayerData",

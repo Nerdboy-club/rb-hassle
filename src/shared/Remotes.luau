@@ -11,6 +11,7 @@ local DEFS = {
 	Hint = "RemoteEvent", -- { positions = {Vector3}, seconds }
 	Status = "RemoteEvent", -- { effects = { {name, seconds} }, stance }
 	Phase = "RemoteEvent", -- "lobby" | "game" | "win"
+	SpellChoice = "RemoteEvent", -- { spellId, title, options = { {id, label} } } выбор цели заклинания («Полёт»)
 	ArenaMenu = "RemoteEvent", -- меню портала арены: снимок групп и очереди либо { close = true }
 	ArenaStatus = "RemoteEvent", -- { active, boss, seconds, members, won } — идущий бой
 	-- client -> server
@@ -20,6 +21,7 @@ local DEFS = {
 	QuizAnswer = "RemoteEvent", -- { qid, index }
 	Attack = "RemoteEvent", -- Vector3 направление удара
 	Stance = "RemoteEvent", -- "ten" | "zetsu" | "none"
+	SpellChoose = "RemoteEvent", -- { spellId, option } выбор цели заклинания, option = nil — отмена
 	ArenaAction = "RemoteEvent", -- { action = "solo"|"create"|"join"|"leave"|"start"|"queue"|"unqueue"|"surrender"|"close", ... }
 }
 

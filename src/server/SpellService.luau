@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Cards = require(Shared.Cards)
+local Remotes = require(Shared.Remotes)
 local Spells = require(Shared.Spells)
 local Util = require(Shared.Util)
 local Zones = require(Shared.Zones)
@@ -63,27 +64,42 @@ local function harmful(caster: Player, victim: Player): boolean
 	return true
 end
 
-local handlers: { [string]: (Player, { [string]: any }) -> boolean } = {}
+local handlers: { [string]: (Player, { [string]: any }, string?) -> boolean } = {}
 
 function handlers.exit(player)
 	require(script.Parent.GameService).exitGame(player)
 	return true
 end
 
-function handlers.teleport(player, params)
+-- куда можно лететь заклинанием «Полёт»
+local FLY_ZONES = { "Shiso", "Antokiba", "Rubicuta", "Masadora", "Aiai", "Soufrabi", "Dorias", "Limeiro", "Port" }
+
+local function flyTo(player: Player, zoneKey: string): boolean
 	if require(script.Parent.ArenaService).isBusy(player) then
 		PlayerData.notify(player, "В бою на арене телепортироваться нельзя. Сдайтесь или победите босса.", "warn")
 		return false
 	end
-	local zone = Zones[params.zone]
+	local zone = Zones[zoneKey]
 	local part = root(player)
 	if not zone or not part then
 		return false
 	end
-	local point = WorldBuilder.zonePoint(params.zone, 0, zone.kind == "town" and 36 or 0)
+	local point = WorldBuilder.zonePoint(zoneKey, 0, zone.kind == "town" and 36 or 0)
 	part.CFrame = CFrame.new(point + Vector3.new(0, 4, 0))
 	PlayerData.notify(player, "Вы перенеслись: " .. zone.name, "good")
 	return true
+end
+
+function handlers.teleport(player, params)
+	return flyTo(player, params.zone)
+end
+
+--- «Полёт»: пункт назначения выбирает игрок (выбор приходит параметром choice).
+function handlers.fly(player, _params, choice)
+	if not choice or not table.find(FLY_ZONES, choice) then
+		return false
+	end
+	return flyTo(player, choice)
 end
 
 function handlers.reveal(player, params)
@@ -282,12 +298,42 @@ function handlers.hpboost(player, params)
 	return true
 end
 
-function SpellService.cast(player: Player, spell: Spells.Spell): boolean
+--- Заклинания, где игрок сам выбирает цель (сейчас только «Полёт»).
+function SpellService.needsChoice(spell: Spells.Spell): boolean
+	return spell.effect == "fly"
+end
+
+type Pending = { spellId: number, ref: { slot: number?, uid: number? }, expires: number }
+local pendingChoice: { [Player]: Pending } = {}
+
+--- Показать игроку выбор; карта не тратится, пока он не выберет.
+function SpellService.askChoice(player: Player, spell: Spells.Spell, ref: { slot: number?, uid: number? })
+	local options = {}
+	for _, key in FLY_ZONES do
+		table.insert(options, { id = key, label = Zones[key].name })
+	end
+	pendingChoice[player] = { spellId = spell.id, ref = ref, expires = os.clock() + 60 }
+	Remotes.SpellChoice:FireClient(player, { spellId = spell.id, title = spell.name .. ": куда лететь?", options = options })
+end
+
+local function onChoose(player: Player, data: any)
+	if type(data) ~= "table" then
+		return
+	end
+	local pending = pendingChoice[player]
+	pendingChoice[player] = nil
+	if not pending or os.clock() > pending.expires or data.spellId ~= pending.spellId or type(data.option) ~= "string" then
+		return -- отмена, устаревший или подделанный выбор
+	end
+	require(script.Parent.Binder).gain(player, pending.ref, data.option, pending.spellId)
+end
+
+function SpellService.cast(player: Player, spell: Spells.Spell, choice: string?): boolean
 	local handler = handlers[spell.effect]
 	if not handler then
 		return false
 	end
-	local cast = handler(player, spell.params)
+	local cast = handler(player, spell.params, choice)
 	if cast then
 		PlayerData.notify(player, "Заклинание «" .. spell.name .. "» сработало.", "good")
 		-- запас магазина пополняется, когда заклинания используют
@@ -298,6 +344,10 @@ end
 
 --- «Магнит» тянет предметы в руку, пока действует.
 function SpellService.start()
+	Remotes.SpellChoose.OnServerEvent:Connect(onChoose)
+	Players.PlayerRemoving:Connect(function(player)
+		pendingChoice[player] = nil
+	end)
 	local accumulator = 0
 	RunService.Heartbeat:Connect(function(dt)
 		accumulator += dt

@@ -17,6 +17,7 @@ local TouchControls = require(script.Parent.TouchControls)
 local Ambient = require(script.Parent.Ambient)
 local AttackFx = require(script.Parent.AttackFx)
 local ArenaUI = require(script.Parent.ArenaUI)
+local ChoiceUI = require(script.Parent.ChoiceUI)
 
 local player = Players.LocalPlayer
 
@@ -36,6 +37,7 @@ local book = BookUI.create(gui)
 DialogUI.create(gui)
 local shop = ShopUI.create(gui)
 local arena = ArenaUI.create(gui)
+local choice = ChoiceUI.create(gui)
 QuizUI.create(gui)
 Effects.start()
 pcall(Ambient.start)
@@ -218,7 +220,7 @@ if TouchControls.isTouchDevice() then
 			toggleStance("zetsu")
 		end,
 	}, function()
-		return book.isOpen() or shop.isOpen() or arena.isOpen()
+		return book.isOpen() or shop.isOpen() or arena.isOpen() or choice.isOpen()
 	end)
 end
 -- ===== горячие клавиши =====

@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
+local CardUse = require(Shared.CardUse)
 local Cards = require(Shared.Cards)
 local Spells = require(Shared.Spells)
 
@@ -11,23 +12,8 @@ local PlayerData = require(script.Parent.PlayerData)
 
 local Binder = {}
 
--- Эффекты «Получить» для несложных карт: {heal, haste секунд, yen}
-local CONSUMABLE: { [number]: { heal: number?, yen: number?, haste: number? } } = {
-	[201] = { heal = 60 },
-	[202] = { heal = 100 },
-	[203] = { heal = 30 },
-	[204] = { heal = 80 },
-	[205] = { heal = 150, haste = 20 },
-	[43] = { heal = 120 },
-	[61] = { heal = 40 },
-	[66] = { heal = 25 },
-	[67] = { heal = 25 },
-	[75] = { heal = 20 },
-	[80] = { heal = 25 },
-	[73] = { yen = 10000 },
-	[59] = { yen = 1000 },
-	[85] = { yen = 100 },
-}
+-- Эффекты еды, зелий и денег: см. shared/CardUse.luau
+local CONSUMABLE = CardUse.CONSUMABLE
 
 function Binder.hasId(profile: PlayerData.Profile, id: number): boolean
 	if profile.slots[id] then
@@ -153,7 +139,8 @@ local function heal(player: Player, amount: number)
 end
 
 --- «Получить»: превратить карту в настоящую вещь. Обратно в карту она уже не станет.
-function Binder.gain(player: Player, ref: { slot: number?, uid: number? })
+--- choice — выбор игрока для заклинаний с выбором (пункт назначения «Полёта»); expectId — какую карту ждали.
+function Binder.gain(player: Player, ref: { slot: number?, uid: number? }, choice: string?, expectId: number?)
 	local profile = PlayerData.get(player)
 	if not profile then
 		return
@@ -171,7 +158,7 @@ function Binder.gain(player: Player, ref: { slot: number?, uid: number? })
 			end
 		end
 	end
-	if not id then
+	if not id or (expectId and id ~= expectId) then
 		return
 	end
 	local card = Cards.get(id)
@@ -182,10 +169,20 @@ function Binder.gain(player: Player, ref: { slot: number?, uid: number? })
 		PlayerData.notify(player, "Благословение правителя нужно для победы — его нельзя использовать.", "warn")
 		return
 	end
+	-- у коллекционных карт (горшок, роза и т. п.) эффекта нет: карту не тратим
+	if not CardUse.usable(card) then
+		PlayerData.notify(player, ("«%s» — коллекционная карта: у неё нет эффекта, она остаётся в книге. Её нужно просто собрать."):format(card.name), "info")
+		return
+	end
 
 	local spell = Spells.get(id)
 	if spell then
-		local cast = require(script.Parent.SpellService).cast(player, spell)
+		local SpellService = require(script.Parent.SpellService)
+		if SpellService.needsChoice(spell) and choice == nil then
+			SpellService.askChoice(player, spell, ref) -- карта потратится, когда игрок выберет
+			return
+		end
+		local cast = SpellService.cast(player, spell, choice)
 		if not cast then
 			return
 		end

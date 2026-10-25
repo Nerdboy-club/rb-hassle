@@ -56,7 +56,7 @@ local order = {}
 for _, r in Ranks.order do table.insert(order, r .. "=" .. (rankCount[r] or 0)) end
 print("ranks: " .. table.concat(order, " "))
 print("spells:", #Spells.list, "free:", #Cards.freeIds)
-assert(#Spells.list == 40)
+assert(#Spells.list == 32)
 
 -- monsters
 for key, m in Monsters do

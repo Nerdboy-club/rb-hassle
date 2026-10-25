@@ -240,6 +240,22 @@ function GameService.start()
 		task.spawn(onPlayerAdded, player)
 	end
 
+	-- Studio: бесконечные йены для проверки лавок, образов и заклинаний
+	if RunService:IsStudio() and Config.DevInfiniteYen then
+		task.spawn(function()
+			while true do
+				task.wait(1)
+				for _, player in Players:GetPlayers() do
+					local profile = PlayerData.get(player)
+					if profile and profile.yen < 50000000 then
+						profile.yen = 99999999
+						PlayerData.push(player)
+					end
+				end
+			end
+		end)
+	end
+
 	Players.PlayerRemoving:Connect(function(player)
 		local profile = PlayerData.get(player)
 		if profile then
