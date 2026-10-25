@@ -881,12 +881,6 @@ function WorldBuilder.build()
 	scatter()
 	buildTrails()
 	buildLobby()
-
-	-- диагностика высоты земли: сколько студов от верха рельефа до типичных построек (смотреть в Output)
-	for _, key in { "Shiso", "Antokiba", "Masadora", "Dorias" } do
-		local zone = Zones[key]
-		print(("[World] %s: terrainY центра = %.2f"):format(key, WorldBuilder.terrainY(zone.x, zone.z)))
-	end
 end
 
 return WorldBuilder
