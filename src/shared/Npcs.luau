@@ -28,6 +28,7 @@ local Npcs: { [string]: Npc } = {
 	goldgirl = { name = "Девушка с золотой пылью", zone = "Aiai", dx = -8, dz = 6, shirt = C(250, 215, 90), role = "goldgirl" },
 	goldguard = { name = "Страж Девушки из золотой пыли", zone = "Aiai", dx = 2, dz = 12, shirt = C(60, 60, 80), role = "goldguard", scale = 1.2 },
 	beachnpc = { name = "NPC «Участок на пляже»", zone = "Coast", dx = 560, dz = 650, shirt = C(240, 160, 90), role = "beach" },
+	wardrobe = { name = "Гардероб героев", zone = "Antokiba", dx = -4, dz = 26, shirt = C(150, 90, 200), role = "wardrobe" },
 	shop_antokiba = { name = "Торговый дом Антокибы", zone = "Antokiba", dx = 14, dz = -24, shirt = C(180, 140, 80), role = "shop", shop = "antokiba" },
 	shop_wigpen = { name = "Wig & Pen", zone = "Antokiba", dx = -30, dz = 22, shirt = C(130, 90, 160), role = "shop", shop = "wigpen" },
 	shop_masadora = { name = "Торговый дом Масадоры", zone = "Masadora", dx = -16, dz = 14, shirt = C(110, 100, 170), role = "shop", shop = "masadora" },

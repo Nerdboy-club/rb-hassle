@@ -16,6 +16,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local QuizService = require(script.Parent.QuizService)
 local RigBuilder = require(script.Parent.RigBuilder)
 local ShopService = require(script.Parent.ShopService)
+local SkinService = require(script.Parent.SkinService)
 local Status = require(script.Parent.Status)
 local WorldBuilder = require(script.Parent.WorldBuilder)
 
@@ -446,6 +447,8 @@ roles.catdiner = {
 		end
 	end,
 }
+
+roles.wardrobe = SkinService.role
 
 roles.host = {
 	talk = function(ctx)

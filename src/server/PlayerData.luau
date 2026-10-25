@@ -23,6 +23,7 @@ export type Profile = {
 	flags: { [string]: boolean },
 	won: boolean,
 	case: { number },
+	outfit: string?, -- надетый образ героя (см. Skins.luau); купленные образы лежат во flags как skin_<id>
 	inGame: boolean,
 	nextUid: number,
 }
@@ -95,6 +96,7 @@ local function serialize(profile: Profile): { [string]: any }
 		flags = flags,
 		won = profile.won,
 		case = profile.case,
+		outfit = profile.outfit,
 	}
 end
 
@@ -128,6 +130,7 @@ local function deserialize(raw: any): Profile
 	end
 	profile.won = raw.won == true
 	profile.case = raw.case or {}
+	profile.outfit = type(raw.outfit) == "string" and raw.outfit or nil
 	return profile
 end
 

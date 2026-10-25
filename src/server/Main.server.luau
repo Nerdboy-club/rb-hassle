@@ -18,6 +18,7 @@ local services = {
 	"CombatService",
 	"ShopService",
 	"QuizService",
+	"SkinService",
 	"NpcService",
 	"ArenaService",
 	"SpellService",
