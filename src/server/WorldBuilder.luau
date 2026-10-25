@@ -7,6 +7,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Zones = require(Shared.Zones)
 local Npcs = require(Shared.Npcs)
+local Buildings = require(script.Parent.Buildings)
 
 local WorldBuilder = {}
 
@@ -223,16 +224,8 @@ local function rock(position: Vector3, size: number, color: Color3?)
 	part.CanCollide = true
 end
 
-local function house(center: Vector3, width: number, depth: number, height: number, wall: Color3, roof: Color3, yaw: number)
-	local frame = CFrame.new(center) * CFrame.Angles(0, yaw, 0)
-	-- каменный цоколь: уходит глубоко под землю, поэтому дом не «проваливается» на неровном рельефе
-	newPart(decor, "Foundation", V3(width + 1.2, 4, depth + 1.2), frame * CFrame.new(0, -1.6, 0), C3(120, 118, 112), Enum.Material.Cobblestone)
-	newPart(decor, "Wall", V3(width, height, depth), frame * CFrame.new(0, height / 2, 0), wall, Enum.Material.Brick)
-	newPart(decor, "Roof", V3(width + 2, 1.4, depth + 2), frame * CFrame.new(0, height + 0.7, 0), roof, Enum.Material.Slate)
-	local door = newPart(decor, "Door", V3(3, 5.5, 0.4), frame * CFrame.new(0, 2.75, depth / 2 + 0.1), C3(80, 55, 40), Enum.Material.Wood)
-	door.CanCollide = false
-	local window = newPart(decor, "Window", V3(2.4, 2.4, 0.3), frame * CFrame.new(width * 0.28, height * 0.6, depth / 2 + 0.1), C3(255, 235, 150), Enum.Material.Neon)
-	window.CanCollide = false
+local function house(center: Vector3, width: number, depth: number, height: number, wall: Color3, roof: Color3, yaw: number, style: string?)
+	Buildings.house(decor, center, width, depth, height, wall, roof, yaw, style or "cottage")
 end
 
 local function plaza(zoneKey: string, radius: number, color: Color3)
@@ -310,6 +303,33 @@ local function townDetails(zoneKey: string, withWell: boolean)
 	end
 end
 
+local TOWN_STYLES: { [string]: { string } } = {
+	Antokiba = { "cottage", "cottage", "shop", "cottage", "inn" },
+	Rubicuta = { "cottage", "cottage", "shop", "cottage", "inn" },
+	Aiai = { "cottage", "cottage", "shop", "inn", "cottage" },
+	Bunzen = { "cottage", "cottage", "inn", "cottage", "shop" },
+	Masadora = { "stone", "stone", "tower", "stone" },
+	Soufrabi = { "cottage", "shop", "cottage", "cottage" },
+	Port = { "cottage", "shop", "cottage", "shop" },
+	Dorias = { "inn", "stone", "tower", "stone" },
+	Limeiro = { "stone", "tower", "stone", "shop" },
+	Bandits = { "cottage" },
+}
+
+local function pickHouseStyle(zoneKey: string, index: number): string
+	if zoneKey == "Bandits" then
+		return "cottage"
+	end
+	if index % 7 == 0 and zoneKey ~= "Masadora" and zoneKey ~= "Soufrabi" and zoneKey ~= "Port" then
+		return "inn"
+	end
+	if index % 5 == 0 and zoneKey ~= "Masadora" then
+		return "shop"
+	end
+	local palette = TOWN_STYLES[zoneKey] or TOWN_STYLES.Antokiba
+	return palette[(index - 1) % #palette + 1]
+end
+
 local function buildTown(zoneKey: string, wall: Color3, roof: Color3, count: number?)
 	local zone = Zones[zoneKey]
 	local houses = count or math.clamp(math.floor(zone.r / 9), 6, 14)
@@ -320,14 +340,24 @@ local function buildTown(zoneKey: string, wall: Color3, roof: Color3, count: num
 		local x = zone.x + math.cos(angle) * radius
 		local z = zone.z + math.sin(angle) * radius
 		local y = WorldBuilder.terrainY(x, z)
+		local w = rng:NextInteger(9, 13)
+		local d = rng:NextInteger(9, 13)
+		local h = rng:NextInteger(7, 11)
+		local style = pickHouseStyle(zoneKey, index)
+		if style == "tower" then
+			w *= 0.7
+			d *= 0.7
+			h *= 1.8
+		end
 		house(
 			V3(x, y, z),
-			rng:NextInteger(9, 13),
-			rng:NextInteger(9, 13),
-			rng:NextInteger(7, 11),
+			w,
+			d,
+			h,
 			wall:Lerp(C3(255, 255, 255), rng:NextNumber(0, 0.25)),
 			roof,
-			angle + math.pi / 2
+			angle + math.pi / 2,
+			style
 		)
 	end
 	townDetails(zoneKey, zoneKey ~= "Aiai" and zoneKey ~= "Masadora")
