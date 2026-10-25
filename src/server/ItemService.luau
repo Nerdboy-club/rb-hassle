@@ -12,6 +12,7 @@ local CardRegistry = require(script.Parent.CardRegistry)
 local PlayerData = require(script.Parent.PlayerData)
 local Hand = require(script.Parent.Hand)
 local WorldBuilder = require(script.Parent.WorldBuilder)
+local ItemModels = require(script.Parent.ItemModels)
 
 local ItemService = {}
 
@@ -32,7 +33,9 @@ local function refresh(node: Part)
 		return
 	end
 	local hidden = node:GetAttribute("Taken") == true or node:GetAttribute("Consumed") == true
-	node.Transparency = hidden and 1 or 0
+	-- ядро — полупрозрачное свечение цвета ранга вокруг модельки
+	node.Transparency = hidden and 1 or 0.65
+	ItemModels.setVisible(node, not hidden)
 	local light = node:FindFirstChildOfClass("PointLight")
 	if light then
 		light.Enabled = not hidden
@@ -54,7 +57,7 @@ local function findSpot(zoneKey: string): Vector3
 		local y = WorldBuilder.terrainY(candidate.X, candidate.Z)
 		point = Vector3.new(candidate.X, y + 1.6, candidate.Z)
 		-- в воду и в стены не кладём
-		if y > -0.5 and y < 8 and WorldBuilder.isFree(point, 3) then
+		if y > -1.5 and y < 8 and WorldBuilder.isFree(point, 3) then
 			return point
 		end
 	end
@@ -65,7 +68,7 @@ local function spawnNode(card: Cards.Card, zoneKey: string)
 	local node = Instance.new("Part")
 	node.Name = "Pickup"
 	node.Shape = Enum.PartType.Ball
-	node.Size = Vector3.new(2.4, 2.4, 2.4)
+	node.Size = Vector3.new(3.4, 3.4, 3.4)
 	node.Material = Enum.Material.Neon
 	node.Color = Ranks.color(card.rank)
 	node.Anchored = true
@@ -89,7 +92,9 @@ local function spawnNode(card: Cards.Card, zoneKey: string)
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = node
 
+	node.Transparency = 0.65
 	node.Parent = folder
+	ItemModels.attach(node, card)
 	table.insert(nodes, node)
 	nodesByCard[card.id] = nodesByCard[card.id] or {}
 	table.insert(nodesByCard[card.id], node)
