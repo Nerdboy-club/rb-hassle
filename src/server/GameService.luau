@@ -56,12 +56,27 @@ local function chooseCase(profile: PlayerData.Profile)
 	end
 end
 
+--- На острове персонаж «стоит» на единой высоте мира (террейн + groundLift), а не в текстуре земли.
+local function setLift(humanoid: Humanoid, on: boolean)
+	local base = humanoid:GetAttribute("BaseHipHeight")
+	if base == nil then
+		base = humanoid.HipHeight
+		humanoid:SetAttribute("BaseHipHeight", base)
+	end
+	humanoid.HipHeight = (base :: number) + (on and WorldBuilder.groundLift or 0)
+end
+
 function GameService.enterGame(player: Player)
 	local profile = PlayerData.get(player)
 	if not profile or profile.inGame then
 		return
 	end
 	profile.inGame = true
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		setLift(humanoid, true)
+	end
 	if RunService:IsStudio() and Config.DevGiveAllSpells then
 		local owned = {}
 		for _, entry in profile.free do
@@ -89,6 +104,11 @@ function GameService.exitGame(player: Player)
 	Hand.dropAll(player)
 	Status.clear(player)
 	profile.inGame = false
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		setLift(humanoid, false)
+	end
 	if profile.won then
 		chooseCase(profile)
 	end
@@ -122,6 +142,10 @@ local function onCharacter(player: Player, character: Model)
 	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
 	if not humanoid then
 		return
+	end
+	local early = PlayerData.get(player)
+	if early and early.inGame then
+		setLift(humanoid, true)
 	end
 	humanoid.Died:Connect(function()
 		local profile = PlayerData.get(player)

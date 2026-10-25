@@ -92,6 +92,7 @@ local terrainOnly: RaycastParams?
 -- Текстуры террейна выступают над его физической поверхностью: всё, что стоит на земле, ставим чуть выше,
 -- чтобы дома, предметы и деревья не тонули. Единая высота для всего мира.
 local GROUND_LIFT = 0.9
+WorldBuilder.groundLift = GROUND_LIFT
 
 function WorldBuilder.terrainY(x: number, z: number): number
 	-- только Terrain: не цепляем игроков, NPC, монстров и постройки

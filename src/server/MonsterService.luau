@@ -56,18 +56,8 @@ local folder: Folder
 local rng = Random.new()
 local nextId = 0
 
-local function groundParams(): RaycastParams
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include -- только Terrain: монстры не взбираются на игроков и постройки
-	params.FilterDescendantsInstances = { workspace.Terrain }
-	return params
-end
-
-local params: RaycastParams
-
 local function groundAt(x: number, z: number): number
-	local hit = workspace:Raycast(Vector3.new(x, 200, z), Vector3.new(0, -400, 0), params)
-	return hit and hit.Position.Y or 0
+	return WorldBuilder.terrainY(x, z) -- тот же единый уровень земли, что у построек и предметов
 end
 
 local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Frame)
@@ -594,7 +584,6 @@ function MonsterService.start()
 	folder = Instance.new("Folder")
 	folder.Name = "Monsters"
 	folder.Parent = workspace:WaitForChild("World")
-	params = groundParams()
 
 	for key, def in Monsters do
 		for _ = 1, def.count do
