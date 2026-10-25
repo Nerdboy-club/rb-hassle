@@ -11,6 +11,8 @@ local DEFS = {
 	Hint = "RemoteEvent", -- { positions = {Vector3}, seconds }
 	Status = "RemoteEvent", -- { effects = { {name, seconds} }, stance }
 	Phase = "RemoteEvent", -- "lobby" | "game" | "win"
+	ArenaMenu = "RemoteEvent", -- меню портала арены: снимок групп и очереди либо { close = true }
+	ArenaStatus = "RemoteEvent", -- { active, boss, seconds, members, won } — идущий бой
 	-- client -> server
 	BinderAction = "RemoteEvent", -- { action = "insert"|"release"|"gain", ... }
 	DialogChoice = "RemoteEvent", -- { npcId, optionId }
@@ -18,6 +20,7 @@ local DEFS = {
 	QuizAnswer = "RemoteEvent", -- { qid, index }
 	Attack = "RemoteEvent", -- Vector3 направление удара
 	Stance = "RemoteEvent", -- "ten" | "zetsu" | "none"
+	ArenaAction = "RemoteEvent", -- { action = "solo"|"create"|"join"|"leave"|"start"|"queue"|"unqueue"|"surrender"|"close", ... }
 }
 
 local isServer = RunService:IsServer()

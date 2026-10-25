@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
 local Cards = require(Shared.Cards)
 local Monsters = require(Shared.Monsters)
 local Remotes = require(Shared.Remotes)
@@ -21,6 +22,7 @@ local TICK = 0.05 -- 20 раз в секунду: движение плавне�
 local TREE_HITS = 4
 local TREE_WINDOW = 2.5
 local BODY_ATTACK_COOLDOWN = 1.5
+local TREE_CREDIT = 25 -- вклад одного удара по дереву (жук не теряет HP, вклад считается ударами)
 
 type Mon = {
 	key: string,
@@ -29,6 +31,7 @@ type Mon = {
 	root: Part,
 	bar: Frame,
 	hp: number,
+	maxHp: number,
 	alive: boolean,
 	home: Vector3,
 	position: Vector3,
@@ -46,6 +49,22 @@ type Mon = {
 	hits: { number },
 	leader: Mon?,
 	followers: { Mon },
+	damageBy: { [Player]: number }, -- вклад каждого игрока: делит добычу
+	lastHitter: Player?,
+	groundY: number?, -- арена: ровный пол вместо террейна
+	allowed: { [Player]: boolean }?, -- арена: бьют и преследуют только участники
+	arena: any?, -- арена (ArenaService) или nil для обычного монстра
+	treeNeed: number,
+	onDefeated: ((Mon) -> ())?,
+}
+
+export type SpawnOptions = {
+	groundY: number?,
+	allowed: { [Player]: boolean }?,
+	hpScale: number?,
+	treeNeed: number?,
+	arena: any?,
+	onDefeated: ((Mon) -> ())?,
 }
 
 local active: { Mon } = {}
@@ -58,6 +77,10 @@ local nextId = 0
 
 local function groundAt(x: number, z: number): number
 	return WorldBuilder.terrainY(x, z) -- тот же единый уровень земли, что у построек и предметов
+end
+
+local function groundFor(mon: Mon, x: number, z: number): number
+	return mon.groundY or groundAt(x, z)
 end
 
 local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Frame)
@@ -135,7 +158,7 @@ local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Fra
 end
 
 local function place(mon: Mon, lift: number?)
-	local ground = groundAt(mon.position.X, mon.position.Z)
+	local ground = groundFor(mon, mon.position.X, mon.position.Z)
 	mon.position = Vector3.new(mon.position.X, ground, mon.position.Z)
 	local faint = os.clock() < mon.faintUntil
 	local rollAngle = faint and math.pi / 2 or 0
@@ -151,8 +174,13 @@ local function register(mon: Mon)
 	end
 end
 
-local function spawnMonster(key: string, position: Vector3, leader: Mon?): Mon
+local function spawnMonster(key: string, position: Vector3, leader: Mon?, options: SpawnOptions?): Mon
 	local def = Monsters[key]
+	local opts = options or {}
+	local maxHp = def.hp * (opts.hpScale or 1)
+	if opts.groundY then
+		position = Vector3.new(position.X, opts.groundY, position.Z)
+	end
 	local model, root, fill = buildModel(def, key)
 	nextId += 1
 	model:SetAttribute("MonsterId", nextId)
@@ -162,7 +190,8 @@ local function spawnMonster(key: string, position: Vector3, leader: Mon?): Mon
 		model = model,
 		root = root,
 		bar = fill,
-		hp = def.hp,
+		hp = maxHp,
+		maxHp = maxHp,
 		alive = true,
 		home = position,
 		position = position,
@@ -180,6 +209,13 @@ local function spawnMonster(key: string, position: Vector3, leader: Mon?): Mon
 		hits = {},
 		leader = leader,
 		followers = {},
+		damageBy = {},
+		lastHitter = nil,
+		groundY = opts.groundY,
+		allowed = opts.allowed,
+		arena = opts.arena,
+		treeNeed = opts.treeNeed or TREE_HITS,
+		onDefeated = opts.onDefeated,
 	}
 	place(mon)
 	model.Parent = folder
@@ -222,40 +258,154 @@ end
 
 local setBar
 
---- Поймали/победили: карта в руку игроку, монстр исчезает и позже появляется снова.
-local function capture(mon: Mon, player: Player)
+--- Записать вклад игрока в победу над монстром.
+local function credit(mon: Mon, player: Player, amount: number)
+	mon.damageBy[player] = (mon.damageBy[player] or 0) + amount
+end
+
+--- Доли добычи: по вкладу в урон, последний удар добавляет LastHitBonus. Сумма долей = 1.
+local function lootShares(mon: Mon, killer: Player?): { [Player]: number }
+	local valid: { [Player]: number } = {}
+	local total = 0
+	for player, amount in mon.damageBy do
+		local profile = PlayerData.get(player)
+		if amount > 0 and player.Parent and profile and profile.inGame then
+			valid[player] = amount
+			total += amount
+		end
+	end
+	local result: { [Player]: number } = {}
+	if total <= 0 then
+		local profile = killer and PlayerData.get(killer)
+		if killer and killer.Parent and profile and profile.inGame then
+			result[killer] = 1
+		end
+		return result
+	end
+	local bonus = Config.LastHitBonus
+	local sum = 0
+	for player, amount in valid do
+		local share = amount / total * (1 - bonus)
+		if player == killer then
+			share += bonus
+		end
+		result[player] = share
+		sum += share
+	end
+	for player, share in result do
+		result[player] = share / sum -- если добивший ушёл, доли всё равно в сумме дают 1
+	end
+	return result
+end
+
+--- Выдать карту: сначала в руку, если не вышло (руки заняты) — сразу в книгу.
+local function giveCard(player: Player, card: Cards.Card): (boolean, string?)
+	local ok, reason = Hand.add(player, card.id, nil)
+	if ok then
+		return true, "карта в руке"
+	end
+	local Binder = require(script.Parent.Binder)
+	local granted, why = Binder.grant(player, card.id)
+	if granted then
+		return true, "карта сразу в книге"
+	end
+	return false, why or reason
+end
+
+--- Награда за побеждённого монстра всем участникам боя.
+local function distribute(mon: Mon, killer: Player?)
+	local def = mon.def
+	local drops = Cards.withSource("m", def.drop)
+	local card = drops[1]
+	local shares = lootShares(mon, killer)
+
+	-- в открытом мире совсем маленький вклад не награждается; в арене получают все участники
+	if not mon.arena then
+		local kept: { [Player]: number } = {}
+		local sum = 0
+		for player, share in shares do
+			if share >= Config.MinLootShare then
+				kept[player] = share
+				sum += share
+			end
+		end
+		if sum > 0 then
+			shares = {}
+			for player, share in kept do
+				shares[player] = share / sum
+			end
+		end
+	end
+
+	local participants = 0
+	for _ in shares do
+		participants += 1
+	end
+	if participants == 0 then
+		return
+	end
+
+	-- шанс карты = доля × (участников + 1) / 2: соло 100%, в группе у более сильного игрока выше
+	local winners: { [Player]: boolean } = {}
+	local top: Player? = nil
+	local topShare = -1
+	for player, share in shares do
+		if share > topShare then
+			top, topShare = player, share
+		end
+		if card and rng:NextNumber() < math.min(1, share * (participants + 1) / 2) then
+			winners[player] = true
+		end
+	end
+	if card and next(winners) == nil and top then
+		winners[top] = true -- карта не пропадает: хотя бы самому сильному
+	end
+
+	local totalYen = math.floor(mon.maxHp * 1.5)
+	for player, share in shares do
+		local profile = PlayerData.get(player)
+		if profile then
+			local yen = math.floor(totalYen * share + 0.5)
+			profile.yen += yen
+			if not profile.flags.firstMonster then
+				PlayerData.notify(player, "Первая победа! Карта у вас в руке (слева сверху): нажмите на неё, чтобы вложить в книгу.", "good")
+			end
+			profile.flags.firstMonster = true
+			local text = ("%s повержен · ваш вклад %d%% · +%d йен"):format(def.name, math.floor(share * 100 + 0.5), yen)
+			if card then
+				if winners[player] then
+					local ok, how = giveCard(player, card)
+					text ..= ok and (" · " .. how) or (" · карта не досталась: " .. tostring(how))
+				else
+					text ..= " · карта не выпала"
+				end
+			end
+			PlayerData.notify(player, text, "good")
+			PlayerData.push(player)
+		end
+	end
+end
+
+--- Поймали/победили: добыча делится по вкладу, монстр исчезает и позже появляется снова.
+--- technique — поимка особым приёмом (удар в слабое место, Зетсу→Тен, серия по дереву): считается как полный вклад.
+local function capture(mon: Mon, player: Player, technique: boolean?)
 	if not mon.alive then
 		return
 	end
+	if technique then
+		credit(mon, player, mon.maxHp)
+	end
+	mon.lastHitter = player
 	local def = mon.def
 	local drops = Cards.withSource("m", def.drop)
-	if #drops > 0 and Hand.isFull(player) then
-		-- карту некуда взять: монстр остаётся, а не исчезает вместе с наградой
-		mon.hp = math.max(mon.hp, 1)
-		setBar(mon)
-		PlayerData.notify(player, "Руки заняты: вложите карты в книгу, потом добейте " .. def.name .. ".", "warn")
-		return
-	end
 	remove(mon)
+	distribute(mon, player)
 
-	local profile = PlayerData.get(player)
-	if profile then
-		if not profile.flags.firstMonster then
-			PlayerData.notify(player, "Первая победа! Карта у вас в руке (слева сверху): нажмите на неё, чтобы вложить в книгу.", "good")
-		end
-		profile.flags.firstMonster = true
-		local reward = math.floor(def.hp * 1.5)
-		profile.yen += reward
-		if #drops > 0 then
-			local card = drops[1]
-			local ok, reason = Hand.add(player, card.id, nil)
-			if not ok then
-				PlayerData.notify(player, (card.name .. ": " .. (reason or "не вышло взять карту")), "warn")
-			end
-		else
-			PlayerData.notify(player, def.name .. " повержен (+" .. reward .. " йен).", "info")
-		end
-		PlayerData.push(player)
+	if mon.onDefeated then
+		task.spawn(mon.onDefeated, mon)
+	end
+	if mon.arena then
+		return -- в арене монстры не возрождаются
 	end
 
 	task.delay(def.respawn, function()
@@ -277,7 +427,7 @@ local function capture(mon: Mon, player: Player)
 end
 
 function setBar(mon: Mon)
-	mon.bar.Size = UDim2.fromScale(math.clamp(mon.hp / mon.def.hp, 0, 1), 1)
+	mon.bar.Size = UDim2.fromScale(math.clamp(mon.hp / mon.maxHp, 0, 1), 1)
 end
 
 --- Удар игрока по части монстра. Вызывается из CombatService.
@@ -285,6 +435,9 @@ function MonsterService.hit(player: Player, part: BasePart, baseDamage: number):
 	local mon = byPart[part]
 	if not mon or not mon.alive then
 		return false
+	end
+	if mon.allowed and not mon.allowed[player] then
+		return false -- чужой бой в арене
 	end
 	local def = mon.def
 	local now = os.clock()
@@ -300,11 +453,13 @@ function MonsterService.hit(player: Player, part: BasePart, baseDamage: number):
 	-- жук-олень: нужна серия сильных ударов по дереву
 	if def.behavior == "tree" then
 		table.insert(mon.hits, now)
+		credit(mon, player, TREE_CREDIT)
+		mon.lastHitter = player
 		while #mon.hits > 0 and now - mon.hits[1] > TREE_WINDOW do
 			table.remove(mon.hits, 1)
 		end
-		PlayerData.notify(player, ("Дерево дрожит… ударов: %d/%d"):format(#mon.hits, TREE_HITS), "info")
-		if #mon.hits >= TREE_HITS then
+		PlayerData.notify(player, ("Дерево дрожит… ударов: %d/%d"):format(#mon.hits, mon.treeNeed), "info")
+		if #mon.hits >= mon.treeNeed then
 			capture(mon, player)
 		end
 		return true
@@ -312,14 +467,14 @@ function MonsterService.hit(player: Player, part: BasePart, baseDamage: number):
 
 	-- лошадь и гипердождевик: ловятся только особым способом/быстрыми руками
 	if def.behavior == "faint" and now < mon.faintUntil then
-		capture(mon, player)
+		capture(mon, player, true)
 		return true
 	end
 
 	local damage = baseDamage * Status.damageDealtFactor(player)
 	if def.weak and part.Name == def.weak.part then
 		if def.weak.kill then
-			capture(mon, player)
+			capture(mon, player, true)
 			return true
 		end
 		damage *= def.weak.mult
@@ -332,6 +487,8 @@ function MonsterService.hit(player: Player, part: BasePart, baseDamage: number):
 		return true
 	end
 
+	credit(mon, player, math.min(damage, math.max(mon.hp, 0)))
+	mon.lastHitter = player
 	mon.hp -= damage
 	mon.target = player
 	mon.targetUntil = now + 8
@@ -340,6 +497,28 @@ function MonsterService.hit(player: Player, part: BasePart, baseDamage: number):
 		capture(mon, player)
 	end
 	return true
+end
+
+--- Босс арены: своя копия для группы (и стая вокруг него, если есть). Возвращает босса.
+function MonsterService.spawnBoss(key: string, center: Vector3, options: SpawnOptions): Mon
+	local def = Monsters[key]
+	local boss = spawnMonster(key, center, nil, options)
+	if def.pack then
+		local memberOptions: SpawnOptions = { groundY = options.groundY, allowed = options.allowed, arena = options.arena }
+		for _ = 1, def.pack.count do
+			local offset = Vector3.new(rng:NextNumber(-10, 10), 0, rng:NextNumber(-10, 10))
+			local member = spawnMonster(def.pack.member, center + offset, boss, memberOptions)
+			table.insert(boss.followers, member)
+		end
+	end
+	return boss
+end
+
+--- Убрать монстра без награды (конец боя в арене).
+function MonsterService.despawn(mon: Mon)
+	if mon.alive then
+		remove(mon)
+	end
 end
 
 function MonsterService.isMonsterPart(part: Instance): boolean
@@ -359,13 +538,13 @@ local function characterRoot(player: Player): (Part?, Humanoid?)
 	return nil, nil
 end
 
-local function nearestPlayer(from: Vector3, maxDistance: number, respectFactor: boolean): (Player?, number)
+local function nearestPlayer(from: Vector3, maxDistance: number, respectFactor: boolean, allowed: { [Player]: boolean }?): (Player?, number)
 	local best: Player? = nil
 	local bestDistance = math.huge
 	for _, player in Players:GetPlayers() do
 		local profile = PlayerData.get(player)
 		local root = characterRoot(player)
-		if root and profile and profile.inGame then
+		if root and profile and profile.inGame and (not allowed or allowed[player]) then
 			local limit = maxDistance
 			if respectFactor then
 				limit *= Status.aggroFactor(player)
@@ -397,7 +576,7 @@ local function step(mon: Mon, direction: Vector3, speed: number, dt: number)
 		local c, s = math.cos(turn), math.sin(turn)
 		local candidate = Vector3.new(want.X * c - want.Z * s, 0, want.X * s + want.Z * c)
 		local candidatePos = mon.position + candidate * distance
-		local height = groundAt(candidatePos.X, candidatePos.Z)
+		local height = groundFor(mon, candidatePos.X, candidatePos.Z)
 		-- в воду не заходим, на отвесные уступы не запрыгиваем
 		if height >= -0.8 and height - mon.position.Y <= 2.5 and not WorldBuilder.pathBlocked(mon.position, candidate, distance + 3) then
 			unit, nextPos, found = candidate, candidatePos, true
@@ -440,7 +619,7 @@ local function tickMonster(mon: Mon, dt: number, now: number)
 		if now < mon.faintUntil then
 			return
 		end
-		local near = nearestPlayer(mon.position, def.aggro, true)
+		local near = nearestPlayer(mon.position, def.aggro, true, mon.allowed)
 		if near then
 			mon.faintUntil = now + 8
 			place(mon)
@@ -452,7 +631,7 @@ local function tickMonster(mon: Mon, dt: number, now: number)
 
 	-- пузырьковая лошадь: ловится по связке «Зетсу, затем Тен» рядом с ней
 	if mon.key == "BubbleHorse" then
-		local close, distance = nearestPlayer(mon.position, 14, false)
+		local close, distance = nearestPlayer(mon.position, 14, false, mon.allowed)
 		if close and Status.stance(close) == "zetsu" then
 			mon.calmProgress += dt
 			if mon.calmProgress >= 2 then
@@ -465,14 +644,14 @@ local function tickMonster(mon: Mon, dt: number, now: number)
 		end
 		if now < mon.calmedUntil then
 			if close and distance <= 10 and Status.stance(close) == "ten" and now - Status.stanceChangedAt(close) < 3 then
-				capture(mon, close)
+				capture(mon, close, true)
 			end
 			return
 		end
 	end
 
 	if def.behavior == "flee" then
-		local near = nearestPlayer(mon.position, def.aggro, true)
+		local near = nearestPlayer(mon.position, def.aggro, true, mon.allowed)
 		if near then
 			local root = characterRoot(near)
 			if root then
@@ -492,7 +671,7 @@ local function tickMonster(mon: Mon, dt: number, now: number)
 		mon.target = nil
 	end
 	if now >= mon.blindUntil and not target then
-		local found = nearestPlayer(mon.position, def.aggro, true)
+		local found = nearestPlayer(mon.position, def.aggro, true, mon.allowed)
 		if found then
 			target = found
 			mon.target = found
@@ -586,8 +765,10 @@ function MonsterService.start()
 	folder.Parent = workspace:WaitForChild("World")
 
 	for key, def in Monsters do
-		for _ = 1, def.count do
-			spawnAt(key)
+		if not def.arena then -- редкие боссы живут только в аренах
+			for _ = 1, def.count do
+				spawnAt(key)
+			end
 		end
 	end
 

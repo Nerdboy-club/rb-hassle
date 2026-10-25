@@ -16,6 +16,7 @@ local State = require(script.Parent.State)
 local TouchControls = require(script.Parent.TouchControls)
 local Ambient = require(script.Parent.Ambient)
 local AttackFx = require(script.Parent.AttackFx)
+local ArenaUI = require(script.Parent.ArenaUI)
 
 local player = Players.LocalPlayer
 
@@ -34,6 +35,7 @@ end)
 local book = BookUI.create(gui)
 DialogUI.create(gui)
 local shop = ShopUI.create(gui)
+local arena = ArenaUI.create(gui)
 QuizUI.create(gui)
 Effects.start()
 pcall(Ambient.start)
@@ -216,7 +218,7 @@ if TouchControls.isTouchDevice() then
 			toggleStance("zetsu")
 		end,
 	}, function()
-		return book.isOpen() or shop.isOpen()
+		return book.isOpen() or shop.isOpen() or arena.isOpen()
 	end)
 end
 -- ===== горячие клавиши =====
@@ -239,12 +241,12 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	elseif input.KeyCode == Enum.KeyCode.Escape and shop.isOpen() then
 		shop.close()
 	elseif input.UserInputType == Enum.UserInputType.MouseButton1 and not TouchControls.isTouchDevice() then
-		if book.isOpen() or shop.isOpen() then
+		if book.isOpen() or shop.isOpen() or arena.isOpen() then
 			return
 		end
 		mouseHeld = true
 		task.spawn(function()
-			while mouseHeld and not (book.isOpen() or shop.isOpen()) do
+			while mouseHeld and not (book.isOpen() or shop.isOpen() or arena.isOpen()) do
 				attackAt(UserInputService:GetMouseLocation())
 				task.wait(0.15)
 			end

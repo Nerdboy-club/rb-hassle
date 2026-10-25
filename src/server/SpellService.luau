@@ -71,6 +71,10 @@ function handlers.exit(player)
 end
 
 function handlers.teleport(player, params)
+	if require(script.Parent.ArenaService).isBusy(player) then
+		PlayerData.notify(player, "В бою на арене телепортироваться нельзя. Сдайтесь или победите босса.", "warn")
+		return false
+	end
 	local zone = Zones[params.zone]
 	local part = root(player)
 	if not zone or not part then

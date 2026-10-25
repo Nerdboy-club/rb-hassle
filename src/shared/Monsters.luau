@@ -27,6 +27,7 @@ export type Monster = {
 	parts: { Part },
 	weak: { part: string, mult: number, kill: boolean? }?,
 	respawn: number,
+	arena: { zone: string, dx: number, dz: number }?, -- редкий босс: бой в арене, вход через портал в этой зоне
 	pack: { count: number, member: string }?,
 }
 
@@ -111,6 +112,7 @@ local Monsters: { [string]: Monster } = {
 			part("Horn", "Block", V(0.4, 0.4, 2.2), V(1.6, 19.8, -5), C(235, 235, 240)),
 		},
 		respawn = 150,
+		arena = { zone = "Forest", dx = 24, dz = 0 },
 	},
 	Melanin = {
 		name = "Меланиновая ящерица",
@@ -131,6 +133,7 @@ local Monsters: { [string]: Monster } = {
 		},
 		weak = { part = "Weak", mult = 8 },
 		respawn = 150,
+		arena = { zone = "Swamp", dx = 0, dz = -30 },
 	},
 	HyperPuff = {
 		name = "Гипердождевик",
@@ -183,6 +186,7 @@ local Monsters: { [string]: Monster } = {
 			part("Tail", "Block", V(1.1, 1.1, 3.4), V(0, 4, 5), C(60, 60, 80)),
 		},
 		respawn = 200,
+		arena = { zone = "Forest", dx = -24, dz = 0 },
 		pack = { count = 3, member = "Wolf" },
 	},
 	OneEye = {

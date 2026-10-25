@@ -103,6 +103,7 @@ function GameService.exitGame(player: Player)
 	end
 	Hand.dropAll(player)
 	Status.clear(player)
+	require(script.Parent.ArenaService).leave(player)
 	profile.inGame = false
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
