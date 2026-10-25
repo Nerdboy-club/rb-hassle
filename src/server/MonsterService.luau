@@ -112,11 +112,15 @@ local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Fra
 		elseif spec.shape == "Cylinder" then
 			part.Shape = Enum.PartType.Cylinder
 		end
-		part.CFrame = CFrame.new(spec.offset)
+		local cf = CFrame.new(spec.offset)
+		if spec.rot then
+			cf *= CFrame.Angles(math.rad(spec.rot.X), math.rad(spec.rot.Y), math.rad(spec.rot.Z))
+		end
 		if spec.shape == "Cylinder" then
 			-- ось цилиндра у Roblox — X; вертикальный ствол поворачиваем
-			part.CFrame = CFrame.new(spec.offset) * CFrame.Angles(0, 0, math.pi / 2)
+			cf *= CFrame.Angles(0, 0, math.pi / 2)
 		end
+		part.CFrame = cf
 		part:SetAttribute("Monster", true)
 		part.Parent = model
 		top = math.max(top, spec.offset.Y + spec.size.Y / 2)
