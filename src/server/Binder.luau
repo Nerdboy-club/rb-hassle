@@ -1,4 +1,4 @@
--- Книга: 100 указанных слотов + 45 свободных. Вложить, вернуть в исходное состояние, «Приращение».
+-- Книга: 100 указанных слотов + 45 свободных. Вложить, вернуть в исходное состояние, «Получить».
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -11,7 +11,7 @@ local PlayerData = require(script.Parent.PlayerData)
 
 local Binder = {}
 
--- Эффекты «Приращения» для несложных карт: {heal, haste секунд, yen}
+-- Эффекты «Получить» для несложных карт: {heal, haste секунд, yen}
 local CONSUMABLE: { [number]: { heal: number?, yen: number?, haste: number? } } = {
 	[201] = { heal = 60 },
 	[202] = { heal = 100 },
@@ -152,7 +152,7 @@ local function heal(player: Player, amount: number)
 	end
 end
 
---- «Приращение»: превратить карту в настоящую вещь. Обратно в карту она уже не станет.
+--- «Получить»: превратить карту в настоящую вещь. Обратно в карту она уже не станет.
 function Binder.gain(player: Player, ref: { slot: number?, uid: number? })
 	local profile = PlayerData.get(player)
 	if not profile then

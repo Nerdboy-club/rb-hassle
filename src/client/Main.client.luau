@@ -95,14 +95,14 @@ local function lowerCyrillic(text: string): string
 	return table.concat(out)
 end
 
--- слова кольца: «Книга» открывает переплёт, «Приращение» — режим приращения
+-- слова кольца: «Книга» открывает переплёт, «Получить» — режим получить
 local function say(text: string)
 	local trimmed = text:gsub("^[%s/]+", "")
 	trimmed = trimmed:gsub("%s+$", "")
 	local word = lowerCyrillic(trimmed)
 	if word == "книга" or word == "book" then
 		book.open("normal")
-	elseif word == "приращение" or word == "gain" then
+	elseif word == "получить" or word == "приращение" or word == "gain" then
 		book.open("gain")
 	elseif word == "тен" or word == "ten" then
 		Remotes.Stance:FireServer("ten")

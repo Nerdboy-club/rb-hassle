@@ -1,4 +1,4 @@
--- Действия игрока с книгой: вложить карту из руки, вернуть в исходное состояние, «Приращение».
+-- Действия игрока с книгой: вложить карту из руки, вернуть в исходное состояние, «Получить».
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")

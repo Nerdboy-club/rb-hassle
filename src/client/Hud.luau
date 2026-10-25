@@ -98,7 +98,7 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 		return button
 	end
 	ringButton("📖 Книга  [Tab]", "B", actions.book)
-	ringButton("✨ Приращение  [G]", "G", actions.gain)
+	ringButton("✨ Получить  [G]", "G", actions.gain)
 	stanceButtons.ten = ringButton("🛡 Тен  [T]", "T", actions.ten)
 	stanceButtons.zetsu = ringButton("🌫 Зетсу  [Y]", "Z", actions.zetsu)
 	local commandBox = Instance.new("TextBox")

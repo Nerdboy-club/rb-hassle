@@ -21,7 +21,7 @@ local HELP = table.concat({
 	"• Подберите предмет — он станет картой в руке. У вас минута, чтобы вложить её в книгу, иначе карта снова станет предметом.",
 	"• Цель — заполнить все 100 слотов. Копии-дубликаты и карты заклинаний лежат в 45 свободных слотах.",
 	"• У каждого ранга свой лимит копий на сервере: пока он выбран, предмет в карту не превращается. «Вернуть в исходное» освобождает лимит.",
-	"• «Приращение» (G) превращает карту в настоящую вещь: заклинание срабатывает, зелье лечит, йены попадают в кошелёк. Обратно в карту она уже не вернётся.",
+	"• «Получить» (G) превращает карту в настоящую вещь: заклинание срабатывает, зелье лечит, йены попадают в кошелёк. Обратно в карту она уже не вернётся.",
 	"• Тен (T) снижает урон от монстров, Зетсу (Y) скрывает вас от них. Пузырьковая лошадь ловится связкой «Зетсу, затем Тен».",
 	"• Йены существуют только в виде карты «Кошелёк». Заклинания продаются лишь в Масадоре, особые карты Дориаса — только за азартные игры.",
 	"• Закончите игру — заполните все 100 слотов (последняя карта — Благословение правителя в Лимейро). Выход — через башню Елены.",
@@ -30,7 +30,7 @@ local HELP = table.concat({
 function BookUI.create(gui: ScreenGui)
 	local isOpen = false
 	local tab = "slots"
-	local mode = "normal" -- "gain": подсказка про Приращение
+	local mode = "normal" -- "gain": подсказка про Получить
 	local selected: { kind: string, id: number, uid: number? }? = nil
 
 	local root = Theme.frame(gui, UDim2.fromOffset(960, 600), UDim2.fromScale(0.5, 0.5), Theme.bg)
@@ -189,7 +189,7 @@ function BookUI.create(gui: ScreenGui)
 		end
 		if card.kind ~= "wallet" and card.id ~= Cards.BLESSING_ID then
 			local gainColor = mode == "gain" and Theme.gold or Theme.panelLight
-			local button = action(card.spell and "✨ Использовать заклинание" or "✨ Приращение", gainColor, function()
+			local button = action(card.spell and "✨ Использовать заклинание" or "✨ Получить", gainColor, function()
 				local text = card.spell and ("Прочитать заклинание «%s»? Карта израсходуется."):format(card.name)
 					or ("«%s» станет настоящей вещью и больше не вернётся в карту. Продолжить?"):format(card.name)
 				ask(text, function()
@@ -491,7 +491,7 @@ function BookUI.create(gui: ScreenGui)
 		else
 			stats.Text = "Загрузка…"
 		end
-		banner.Text = mode == "gain" and "Выберите карту и нажмите «Приращение» — она превратится в настоящую вещь." or ""
+		banner.Text = mode == "gain" and "Выберите карту и нажмите «Получить» — она превратится в настоящую вещь." or ""
 		renderTabs()
 		renderHand()
 		renderGrid()
