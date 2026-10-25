@@ -15,6 +15,7 @@ local ShopUI = require(script.Parent.ShopUI)
 local State = require(script.Parent.State)
 local TouchControls = require(script.Parent.TouchControls)
 local Ambient = require(script.Parent.Ambient)
+local AttackFx = require(script.Parent.AttackFx)
 
 local player = Players.LocalPlayer
 
@@ -131,6 +132,7 @@ hud.notify("Добро пожаловать в Greed Island. Подойдите 
 local function sendAttack(direction: Vector3)
 	if direction.Magnitude > 0.1 then
 		Remotes.Attack:FireServer(direction.Unit)
+		pcall(AttackFx.play, direction.Unit)
 	end
 end
 
