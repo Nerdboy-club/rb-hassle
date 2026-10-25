@@ -6,6 +6,7 @@ local CollectionService = game:GetService("CollectionService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Zones = require(Shared.Zones)
+local Npcs = require(Shared.Npcs)
 
 local WorldBuilder = {}
 
@@ -94,7 +95,17 @@ local terrainOnly: RaycastParams?
 local GROUND_LIFT = 0.9
 WorldBuilder.groundLift = GROUND_LIFT
 
+-- Площади городов — ровные диски из деталей: на них стоят NPC, фонари и достопримечательности,
+-- поэтому высота внутри площади известна точно и персонаж не тонет в бугристой текстуре террейна.
+local plazaDiscs: { { x: number, z: number, r: number, top: number } } = {}
+
 function WorldBuilder.terrainY(x: number, z: number): number
+	for _, disc in plazaDiscs do
+		local dx, dz = x - disc.x, z - disc.z
+		if dx * dx + dz * dz < disc.r * disc.r then
+			return disc.top
+		end
+	end
 	-- только Terrain: не цепляем игроков, NPC, монстров и постройки
 	if not terrainOnly then
 		terrainOnly = RaycastParams.new()
@@ -226,17 +237,30 @@ end
 
 local function plaza(zoneKey: string, radius: number, color: Color3)
 	local zone = Zones[zoneKey]
+	-- площадь должна накрывать всех NPC города
+	for _, npc in Npcs do
+		if npc.zone == zoneKey then
+			radius = math.max(radius, math.sqrt(npc.dx * npc.dx + npc.dz * npc.dz) + 7)
+		end
+	end
 	local y = WorldBuilder.terrainY(zone.x, zone.z)
-	local disc = newPart(
-		decor,
-		"Plaza",
-		V3(0.5, radius * 2, radius * 2),
-		CFrame.new(zone.x, y + 0.25, zone.z) * CFrame.Angles(0, 0, math.pi / 2),
-		color,
-		Enum.Material.Cobblestone,
-		Enum.PartType.Cylinder
-	)
-	disc.CanCollide = true
+	local top = y + 0.5
+	local thickness = 4 -- уходит вглубь, чтобы не было щелей над бугристым террейном
+	local function disc(size: number, surface: number, tint: Color3)
+		local part = newPart(
+			decor,
+			"Plaza",
+			V3(thickness, size * 2, size * 2),
+			CFrame.new(zone.x, surface - thickness / 2, zone.z) * CFrame.Angles(0, 0, math.pi / 2),
+			tint,
+			Enum.Material.Cobblestone,
+			Enum.PartType.Cylinder
+		)
+		part.CanCollide = true
+	end
+	disc(radius + 4, y + 0.1, color:Lerp(C3(120, 118, 110), 0.5)) -- плавный край
+	disc(radius, top, color)
+	table.insert(plazaDiscs, { x = zone.x, z = zone.z, r = radius, top = top })
 end
 
 --- Фонарь: тонкий столб и светящийся шар (без PointLight — свет сотен ламп нагрузил бы клиент).
