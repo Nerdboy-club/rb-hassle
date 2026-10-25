@@ -48,15 +48,37 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 	end
 
 	-- ===== баланс и фаза =====
-	local top = Theme.frame(gui, UDim2.fromOffset(260, 38), UDim2.fromOffset(120, 8), Theme.bg)
+	-- над кнопками кольца (на телефоне кнопок кольца нет — панель внизу слева)
+	local top = Theme.frame(gui, UDim2.fromOffset(190, 62), UDim2.new(0, 14, 1, TouchControls.isTouchDevice() and -14 or -240), Theme.bg)
+	top.AnchorPoint = Vector2.new(0, 1)
 	top.BackgroundTransparency = 0.15
 	Theme.corner(top, 10)
-	local yenLabel = Theme.label(top, "", UDim2.new(1, -16, 1, 0), UDim2.fromOffset(10, 0), {
+	local yenLabel = Theme.label(top, "", UDim2.new(1, -16, 0, 24), UDim2.fromOffset(10, 4), {
 		TextYAlignment = Enum.TextYAlignment.Center,
 		Font = Enum.Font.GothamMedium,
-		TextSize = 15,
+		TextSize = 14,
 		TextColor3 = Theme.gold,
 	})
+	local hpTrack = Theme.frame(top, UDim2.new(1, -20, 0, 18), UDim2.fromOffset(10, 34), Color3.fromRGB(50, 24, 28))
+	Theme.corner(hpTrack, 6)
+	local hpFill = Theme.frame(hpTrack, UDim2.fromScale(1, 1), nil, Theme.bad)
+	Theme.corner(hpFill, 6)
+	local hpLabel = Theme.label(hpTrack, "", UDim2.fromScale(1, 1), nil, {
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+	})
+	hpLabel.ZIndex = 2
+	RunService.Heartbeat:Connect(function()
+		local character = Players.LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid.MaxHealth > 0 then
+			local ratio = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+			hpFill.Size = UDim2.fromScale(ratio, 1)
+			hpLabel.Text = ("HP %d / %d"):format(math.ceil(humanoid.Health), humanoid.MaxHealth)
+		end
+	end)
 
 	-- ===== кнопки кольца =====
 	local ring = Theme.frame(gui, UDim2.fromOffset(190, 218), UDim2.new(0, 14, 1, -14), Theme.bg)
@@ -301,6 +323,7 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 		local inGame = State.phase ~= "lobby"
 		ring.Visible = inGame and not TouchControls.isTouchDevice() -- на телефоне кнопки справа (TouchControls)
 		handFrame.Visible = inGame
+		top.Visible = inGame
 		effectsLabel.Visible = inGame
 		if data then
 			yenLabel.Text = ("%s  ·  %d/100 карт"):format(Util.formatYen(data.yen), #data.slots)
