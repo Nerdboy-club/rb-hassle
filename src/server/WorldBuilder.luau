@@ -141,7 +141,9 @@ local function buildTerrain()
 
 	for key, zone in Zones do
 		if key ~= "Coast" and zone.ground then
-			terrain:FillCylinder(CFrame.new(zone.x, -11, zone.z), 20, zone.r * 0.95, zone.ground)
+			-- города на 1.5 stud выше окружающей травы: пол всегда выше травы, постройки не тонут
+			local lift = zone.kind == "town" and 1.5 or 0
+			terrain:FillCylinder(CFrame.new(zone.x, -11 + lift, zone.z), 20, zone.r * 0.95, zone.ground)
 		end
 	end
 
@@ -757,6 +759,9 @@ function WorldBuilder.styleScene()
 	terrain.WaterReflectance = 0.7
 	terrain.WaterWaveSize = 0.18
 	terrain.WaterWaveSpeed = 9
+	pcall(function()
+		terrain.Decoration = false -- без объёмной «травы» террейна: колючие пучки торчали выше пола
+	end)
 
 	Lighting.ClockTime = 14.5
 	Lighting.Brightness = 3
