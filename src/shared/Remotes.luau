@@ -11,6 +11,7 @@ local DEFS = {
 	Hint = "RemoteEvent", -- { positions = {Vector3}, seconds }
 	Status = "RemoteEvent", -- { effects = { {name, seconds} }, stance }
 	Phase = "RemoteEvent", -- "lobby" | "game" | "win"
+	Fx = "RemoteEvent", -- { kind, position?, userId?, effect?, seconds? } визуальные эффекты магии (рисует SpellFx)
 	SpellChoice = "RemoteEvent", -- { spellId, title, options = { {id, label} } } выбор цели заклинания («Полёт»)
 	ArenaMenu = "RemoteEvent", -- меню портала арены: снимок групп и очереди либо { close = true }
 	ArenaStatus = "RemoteEvent", -- { active, boss, seconds, members, won } — идущий бой

@@ -9,6 +9,7 @@ local Cards = require(Shared.Cards)
 local Ranks = require(Shared.Ranks)
 local Remotes = require(Shared.Remotes)
 
+local FxService = require(script.Parent.FxService)
 local Hand = require(script.Parent.Hand)
 local PlayerData = require(script.Parent.PlayerData)
 local Status = require(script.Parent.Status)
@@ -28,7 +29,9 @@ end
 local function teleport(player: Player, spawn: SpawnLocation?)
 	local root = rootOf(player)
 	if root and spawn then
-		root.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+		FxService.teleport(player, function()
+			root.CFrame = spawn.CFrame + Vector3.new(0, 5, 0)
+		end)
 	end
 end
 

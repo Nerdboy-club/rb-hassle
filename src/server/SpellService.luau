@@ -11,6 +11,7 @@ local Spells = require(Shared.Spells)
 local Util = require(Shared.Util)
 local Zones = require(Shared.Zones)
 
+local FxService = require(script.Parent.FxService)
 local PlayerData = require(script.Parent.PlayerData)
 local Status = require(script.Parent.Status)
 local Hand = require(script.Parent.Hand)
@@ -67,6 +68,10 @@ end
 local handlers: { [string]: (Player, { [string]: any }, string?) -> boolean } = {}
 
 function handlers.exit(player)
+	local part = root(player)
+	if part then
+		FxService.flash("teleportOut", part.Position)
+	end
 	require(script.Parent.GameService).exitGame(player)
 	return true
 end
@@ -85,7 +90,9 @@ local function flyTo(player: Player, zoneKey: string): boolean
 		return false
 	end
 	local point = WorldBuilder.zonePoint(zoneKey, 0, zone.kind == "town" and 36 or 0)
-	part.CFrame = CFrame.new(point + Vector3.new(0, 4, 0))
+	FxService.teleport(player, function()
+		part.CFrame = CFrame.new(point + Vector3.new(0, 4, 0))
+	end)
 	PlayerData.notify(player, "Вы перенеслись: " .. zone.name, "good")
 	return true
 end
@@ -335,6 +342,9 @@ function SpellService.cast(player: Player, spell: Spells.Spell, choice: string?)
 	end
 	local cast = handler(player, spell.params, choice)
 	if cast then
+		if spell.effect ~= "fly" and spell.effect ~= "teleport" and spell.effect ~= "exit" then
+			FxService.cast(player, spell.effect, spell.params.duration)
+		end
 		PlayerData.notify(player, "Заклинание «" .. spell.name .. "» сработало.", "good")
 		-- запас магазина пополняется, когда заклинания используют
 		require(script.Parent.ShopService).restockSpell(spell.id)

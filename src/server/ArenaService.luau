@@ -11,6 +11,7 @@ local Monsters = require(Shared.Monsters)
 local Remotes = require(Shared.Remotes)
 
 local CardRegistry = require(script.Parent.CardRegistry)
+local FxService = require(script.Parent.FxService)
 local MonsterService = require(script.Parent.MonsterService)
 local PlayerData = require(script.Parent.PlayerData)
 local WorldBuilder = require(script.Parent.WorldBuilder)
@@ -413,7 +414,9 @@ local function removeFromFight(player: Player, reason: string)
 		sendStatus(player, nil)
 		local root = rootOf(player)
 		if reason ~= "died" and reason ~= "gone" and root and alive(player) then
-			root.CFrame = CFrame.new(returnPoint(fight.bossKey))
+			FxService.teleport(player, function()
+				root.CFrame = CFrame.new(returnPoint(fight.bossKey))
+			end)
 		end
 		if reason == "surrender" then
 			notify(player, "Вы сдались. Босс сбросился — войти снова можно через полминуты.", "warn")
@@ -548,7 +551,9 @@ local function startFight(bossKey: string, candidates: { Player }, requireNearPo
 		local position = middle + Vector3.new(math.cos(angle) * 34, 5, math.sin(angle) * 34)
 		local root = rootOf(player)
 		if root then
-			root.CFrame = CFrame.lookAt(position, Vector3.new(middle.X, position.Y, middle.Z))
+			FxService.teleport(player, function()
+				root.CFrame = CFrame.lookAt(position, Vector3.new(middle.X, position.Y, middle.Z))
+			end)
 		end
 	end
 

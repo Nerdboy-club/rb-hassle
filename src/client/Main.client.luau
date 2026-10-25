@@ -18,6 +18,7 @@ local Ambient = require(script.Parent.Ambient)
 local AttackFx = require(script.Parent.AttackFx)
 local ArenaUI = require(script.Parent.ArenaUI)
 local ChoiceUI = require(script.Parent.ChoiceUI)
+local SpellFx = require(script.Parent.SpellFx)
 
 local player = Players.LocalPlayer
 
@@ -41,6 +42,7 @@ local choice = ChoiceUI.create(gui)
 QuizUI.create(gui)
 Effects.start()
 pcall(Ambient.start)
+pcall(SpellFx.start)
 
 -- заставка при входе
 do
