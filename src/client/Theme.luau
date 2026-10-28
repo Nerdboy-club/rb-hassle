@@ -59,8 +59,10 @@ function Theme.label(parent: Instance, text: string, size: UDim2, position: UDim
 	label.TextYAlignment = Enum.TextYAlignment.Top
 	label.TextWrapped = true
 	label.RichText = false
-	for name, value in props or {} do
-		(label :: any)[name] = value
+	if props then
+		for name, value in props do
+			(label :: any)[name] = value
+		end
 	end
 	label.Parent = parent
 	return label

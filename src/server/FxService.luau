@@ -33,4 +33,9 @@ function FxService.cast(player: Player, effect: string, seconds: number?)
 	Remotes.Fx:FireAllClients({ kind = "cast", userId = player.UserId, effect = effect, seconds = seconds })
 end
 
+--- Предмет подобран: только подобравший видит, как он превращается в карту и летит в книгу.
+function FxService.pickup(player: Player, position: Vector3, cardId: number)
+	Remotes.Fx:FireClient(player, { kind = "pickup", position = position, cardId = cardId })
+end
+
 return FxService

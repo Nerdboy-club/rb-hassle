@@ -9,6 +9,7 @@ local Remotes = require(Shared.Remotes)
 local Util = require(Shared.Util)
 
 local CardRegistry = require(script.Parent.CardRegistry)
+local FxService = require(script.Parent.FxService)
 local PlayerData = require(script.Parent.PlayerData)
 local Hand = require(script.Parent.Hand)
 local WorldBuilder = require(script.Parent.WorldBuilder)
@@ -33,8 +34,7 @@ local function refresh(node: Part)
 		return
 	end
 	local hidden = node:GetAttribute("Taken") == true or node:GetAttribute("Consumed") == true
-	-- ядро — полупрозрачное свечение цвета ранга вокруг модельки
-	node.Transparency = hidden and 1 or 0.65
+	node.Transparency = 1
 	ItemModels.setVisible(node, not hidden)
 	local light = node:FindFirstChildOfClass("PointLight")
 	if light then
@@ -47,6 +47,7 @@ local function refresh(node: Part)
 	local available = CardRegistry.canMint(id)
 	node.Color = available and Ranks.color(card.rank) or GREY
 	prompt.Enabled = available
+	prompt.ObjectText = card.name .. " · ранг " .. card.rank
 	prompt.ActionText = available and "Подобрать" or "Лимит исчерпан"
 end
 
@@ -86,13 +87,14 @@ local function spawnNode(card: Cards.Card, zoneKey: string)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Подобрать"
-	prompt.ObjectText = "Предмет · ранг " .. card.rank
+	prompt.ObjectText = card.name .. " · ранг " .. card.rank
 	prompt.HoldDuration = Config.PickupHoldSeconds
 	prompt.MaxActivationDistance = 10
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = node
 
-	node.Transparency = 0.65
+	node.Transparency = 1
+	node.CastShadow = false
 	node.Parent = folder
 	ItemModels.attach(node, card)
 	table.insert(nodes, node)
@@ -127,12 +129,14 @@ function ItemService.pickup(player: Player, node: Part): boolean
 		return false
 	end
 	node:SetAttribute("Taken", true)
-	local ok, reason = Hand.add(player, node:GetAttribute("CardId"), node)
+	local id = node:GetAttribute("CardId")
+	local ok, reason = Hand.add(player, id, node)
 	if not ok then
 		node:SetAttribute("Taken", false)
 		PlayerData.notify(player, reason or "Не удалось подобрать", "warn")
 		return false
 	end
+	FxService.pickup(player, node.Position, id)
 	return true
 end
 
@@ -193,8 +197,11 @@ function ItemService.start()
 	end
 
 	CardRegistry.changed.Event:Connect(function(id)
-		for _, node in nodesByCard[id] or {} do
-			refresh(node)
+		local nodes = nodesByCard[id]
+		if nodes then
+			for _, node in nodes do
+				refresh(node)
+			end
 		end
 	end)
 end

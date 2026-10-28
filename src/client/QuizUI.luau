@@ -90,8 +90,9 @@ function QuizUI.create(gui: ScreenGui)
 		if activeTween then
 			activeTween:Cancel()
 		end
-		activeTween = TweenService:Create(fill, TweenInfo.new(data.seconds, Enum.EasingStyle.Linear), { Size = UDim2.fromScale(0, 1) })
-		activeTween:Play()
+		local tween = TweenService:Create(fill, TweenInfo.new(data.seconds, Enum.EasingStyle.Linear), { Size = UDim2.fromScale(0, 1) })
+		activeTween = tween
+		tween:Play()
 	end)
 
 	local function fit()

@@ -150,6 +150,15 @@ local function onCharacter(player: Player, character: Model)
 	local early = PlayerData.get(player)
 	if early and early.inGame then
 		setLift(humanoid, true)
+	elseif WorldBuilder.lobbySpawn then
+		-- Страховка от спавна в открытом мире: если RespawnLocation не сработал, возвращаем в лобби.
+		player.RespawnLocation = WorldBuilder.lobbySpawn
+		task.defer(function()
+			local current = PlayerData.get(player)
+			if player.Character == character and not (current and current.inGame) then
+				teleport(player, WorldBuilder.lobbySpawn)
+			end
+		end)
 	end
 	humanoid.Died:Connect(function()
 		local profile = PlayerData.get(player)
@@ -164,7 +173,9 @@ local function onCharacter(player: Player, character: Model)
 end
 
 local function onPlayerAdded(player: Player)
-	player.RespawnLocation = WorldBuilder.lobbySpawn
+	if WorldBuilder.lobbySpawn then
+		player.RespawnLocation = WorldBuilder.lobbySpawn
+	end
 	player.CharacterAdded:Connect(function(character)
 		onCharacter(player, character)
 	end)

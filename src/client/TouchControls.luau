@@ -82,7 +82,7 @@ function TouchControls.create(screen: ScreenGui, actions: { [string]: () -> () }
 		return button
 	end
 	small("Книга", 1, actions.book)
-	small("Прир.", 2, actions.gain)
+	small("Получ.", 2, actions.gain)
 	stanceButtons.ten = small("Тен", 3, actions.ten)
 	stanceButtons.zetsu = small("Зетсу", 4, actions.zetsu)
 
