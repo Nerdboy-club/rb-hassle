@@ -9,11 +9,21 @@ local LIMB_SIGN: { [string]: number } = {
 	RightArm_Sleeve = -1,
 	LeftArm_Cuff = 1,
 	RightArm_Cuff = -1,
+	LeftArm_Shoulder = 1,
+	RightArm_Shoulder = -1,
+	LeftArm_Elbow = 1,
+	RightArm_Elbow = -1,
+	LeftArm_Hand = 1,
+	RightArm_Hand = -1,
 	RightArm_Mic = -1,
 	LeftLeg = -1,
 	RightLeg = 1,
 	LeftLeg_Shoe = -1,
 	RightLeg_Shoe = 1,
+	LeftLeg_Knee = -1,
+	RightLeg_Knee = 1,
+	LeftLeg_Sole = -1,
+	RightLeg_Sole = 1,
 }
 
 -- Высота сустава (плечо +1, бедро -1) от центра корня при scale = 1, вокруг которого качается деталь.
@@ -24,11 +34,21 @@ local LIMB_JOINT_Y: { [string]: number } = {
 	RightArm_Sleeve = 1,
 	LeftArm_Cuff = 1,
 	RightArm_Cuff = 1,
+	LeftArm_Shoulder = 1,
+	RightArm_Shoulder = 1,
+	LeftArm_Elbow = 1,
+	RightArm_Elbow = 1,
+	LeftArm_Hand = 1,
+	RightArm_Hand = 1,
 	RightArm_Mic = 1,
 	LeftLeg = -1,
 	RightLeg = -1,
 	LeftLeg_Shoe = -1,
 	RightLeg_Shoe = -1,
+	LeftLeg_Knee = -1,
+	RightLeg_Knee = -1,
+	LeftLeg_Sole = -1,
+	RightLeg_Sole = -1,
 }
 
 type PartEntry = {
@@ -399,6 +419,34 @@ function RigBuilder.build(displayName: string, shirt: Color3, skin: Color3?, sca
 	addPart(parts, model, "RightArm_Cuff", Vector3.new(1.1, 0.22, 1.1) * factor, cuffColor, Vector3.new(1.5, -0.06, 0) * factor)
 	addPart(parts, model, "LeftLeg_Shoe", Vector3.new(1.08, 0.36, 1.24) * factor, shoeColor, Vector3.new(-0.5, -2.82, -0.08) * factor)
 	addPart(parts, model, "RightLeg_Shoe", Vector3.new(1.08, 0.36, 1.24) * factor, shoeColor, Vector3.new(0.5, -2.82, -0.08) * factor)
+	addPart(parts, model, "LeftLeg_Sole", Vector3.new(1.12, 0.12, 1.3) * factor, shoeColor:Lerp(Color3.fromRGB(12, 12, 16), 0.45), Vector3.new(-0.5, -2.94, -0.08) * factor)
+	addPart(parts, model, "RightLeg_Sole", Vector3.new(1.12, 0.12, 1.3) * factor, shoeColor:Lerp(Color3.fromRGB(12, 12, 16), 0.45), Vector3.new(0.5, -2.94, -0.08) * factor)
+
+	-- Шея, уши, нос и подбородок: убирают эффект «голова на палке» и блочного лица.
+	addPart(parts, model, "Neck", Vector3.new(0.62, 0.34, 0.62) * factor, skinColor:Lerp(Color3.fromRGB(120, 75, 55), 0.16), Vector3.new(0, 1.06, 0) * factor)
+	if role ~= "catdiner" then
+		addPart(parts, model, "LeftEar", Vector3.new(0.28, 0.38, 0.22) * factor, skinColor, Vector3.new(-0.73, 1.72, 0.01) * factor, nil, nil, Enum.PartType.Ball)
+		addPart(parts, model, "RightEar", Vector3.new(0.28, 0.38, 0.22) * factor, skinColor, Vector3.new(0.73, 1.72, 0.01) * factor, nil, nil, Enum.PartType.Ball)
+	end
+	addPart(parts, model, "Nose", Vector3.new(0.2, 0.26, 0.2) * factor, skinColor:Lerp(Color3.fromRGB(120, 65, 50), 0.28), Vector3.new(0, 1.62, -0.74) * factor)
+	addPart(parts, model, "Chin", Vector3.new(0.68, 0.2, 0.2) * factor, skinColor:Lerp(Color3.fromRGB(190, 135, 110), 0.12), Vector3.new(0, 1.12, -0.66) * factor)
+
+	-- Округлые суставы и кисти: руки/ноги перестают быть набором одинаковых брусков.
+	addPart(parts, model, "LeftArm_Shoulder", Vector3.new(1.12, 1.12, 1.12) * factor, shirt, Vector3.new(-1.45, 0.9, 0) * factor, nil, nil, Enum.PartType.Ball)
+	addPart(parts, model, "RightArm_Shoulder", Vector3.new(1.12, 1.12, 1.12) * factor, shirt, Vector3.new(1.45, 0.9, 0) * factor, nil, nil, Enum.PartType.Ball)
+	addPart(parts, model, "LeftArm_Elbow", Vector3.new(0.94, 0.94, 0.94) * factor, handColor:Lerp(cuffColor, 0.18), Vector3.new(-1.5, -0.35, 0) * factor, nil, nil, Enum.PartType.Ball)
+	addPart(parts, model, "RightArm_Elbow", Vector3.new(0.94, 0.94, 0.94) * factor, handColor:Lerp(cuffColor, 0.18), Vector3.new(1.5, -0.35, 0) * factor, nil, nil, Enum.PartType.Ball)
+	addPart(parts, model, "LeftArm_Hand", Vector3.new(0.92, 0.92, 0.92) * factor, handColor, Vector3.new(-1.5, -0.95, 0) * factor, nil, nil, Enum.PartType.Ball)
+	addPart(parts, model, "RightArm_Hand", Vector3.new(0.92, 0.92, 0.92) * factor, handColor, Vector3.new(1.5, -0.95, 0) * factor, nil, nil, Enum.PartType.Ball)
+	addPart(parts, model, "LeftLeg_Knee", Vector3.new(0.95, 0.95, 0.95) * factor, legColor:Lerp(Color3.fromRGB(30, 30, 40), 0.12), Vector3.new(-0.5, -2.1, 0) * factor, nil, nil, Enum.PartType.Ball)
+	addPart(parts, model, "RightLeg_Knee", Vector3.new(0.95, 0.95, 0.95) * factor, legColor:Lerp(Color3.fromRGB(30, 30, 40), 0.12), Vector3.new(0.5, -2.1, 0) * factor, nil, nil, Enum.PartType.Ball)
+
+	-- Мелкие детали одежды: карман, пуговицы и шлёвки ремня.
+	addPart(parts, model, "ChestPocket", Vector3.new(0.55, 0.5, 0.08) * factor, shirt:Lerp(Color3.fromRGB(0, 0, 0), 0.18), Vector3.new(-0.45, 0.18, -0.52) * factor)
+	for index = 1, 3 do
+		addPart(parts, model, "ShirtButton", Vector3.new(0.11, 0.11, 0.08) * factor, collarColor, Vector3.new(0, 0.55 - (index - 1) * 0.28, -0.54) * factor, nil, nil, Enum.PartType.Ball)
+		addPart(parts, model, "BeltLoop", Vector3.new(0.12, 0.4, 0.1) * factor, beltColor:Lerp(Color3.fromRGB(0, 0, 0), 0.22), Vector3.new(-0.7 + (index - 1) * 0.7, -0.82, -0.54) * factor)
+	end
 
 	buildHair(parts, model, role, hash, factor, hairColor)
 	accessories(parts, model, role, factor, shirt)
@@ -409,6 +457,9 @@ function RigBuilder.build(displayName: string, shirt: Color3, skin: Color3?, sca
 		entry.part:SetAttribute("OffsetX", entry.offset.X)
 		entry.part:SetAttribute("OffsetY", entry.offset.Y)
 		entry.part:SetAttribute("OffsetZ", entry.offset.Z)
+		if entry.offset.Y >= 1.0 * factor and not string.find(entry.part.Name, "Spark") then
+			entry.part:SetAttribute("HeadPart", true)
+		end
 		if entry.rot then
 			entry.part:SetAttribute("RotX", entry.rot.X)
 			entry.part:SetAttribute("RotY", entry.rot.Y)
@@ -426,9 +477,22 @@ function RigBuilder.build(displayName: string, shirt: Color3, skin: Color3?, sca
 end
 
 --- Поставить модель так, чтобы подошвы стояли на groundY, лицом в точку lookAt.
---- swing — размах рук и ног в радианах (ходьба); 0 или nil — стоит ровно.
-function RigBuilder.place(model: Model, position: Vector3, groundY: number, lookAt: Vector3?, scale: number?, swing: number?)
+--- swing — размах рук и ног в радианах (ходьба); breathe — вертикальное дыхание корпуса.
+--- headYaw/headPitch — поворот головы относительно тела (радианы), чтобы NPC смотрел на игрока.
+function RigBuilder.place(
+	model: Model,
+	position: Vector3,
+	groundY: number,
+	lookAt: Vector3?,
+	scale: number?,
+	swing: number?,
+	breathe: number?,
+	headYaw: number?,
+	headPitch: number?
+)
 	local factor = scale or 1
+	local yaw = headYaw or 0
+	local pitch = headPitch or 0
 	local center = Vector3.new(position.X, groundY + 3 * factor, position.Z)
 	local facing = lookAt and Vector3.new(lookAt.X, center.Y, lookAt.Z) or (center + Vector3.new(0, 0, -1))
 	if (facing - center).Magnitude < 0.05 then
@@ -442,6 +506,13 @@ function RigBuilder.place(model: Model, position: Vector3, groundY: number, look
 				part:GetAttribute("OffsetY") or 0,
 				part:GetAttribute("OffsetZ") or 0
 			)
+			if breathe and breathe ~= 0 and part.Name ~= "HumanoidRootPart"
+				and not string.find(part.Name, "Leg")
+				and not string.find(part.Name, "Shoe")
+				and not string.find(part.Name, "Sole")
+			then
+				offset += Vector3.new(0, breathe * factor, 0)
+			end
 			local rx = part:GetAttribute("RotX") or 0
 			local ry = part:GetAttribute("RotY") or 0
 			local rz = part:GetAttribute("RotZ") or 0
@@ -453,12 +524,299 @@ function RigBuilder.place(model: Model, position: Vector3, groundY: number, look
 				local pivot = Vector3.new(0, jointY - offset.Y, -offset.Z)
 				local cframe = base * CFrame.new(offset + pivot) * CFrame.Angles(swing * sign, 0, 0) * CFrame.new(-pivot)
 				part.CFrame = hasRot and (cframe * CFrame.Angles(rx, ry, rz)) or cframe
+			elseif (yaw ~= 0 or pitch ~= 0) and part:GetAttribute("HeadPart") then
+				-- голова, волосы, шляпы и уши поворачиваются вокруг шеи, а не вокруг центра головы
+				local pivot = Vector3.new(0, 1.06 * factor - offset.Y, -offset.Z)
+				local cframe = base * CFrame.new(offset + pivot) * CFrame.Angles(pitch, yaw, 0) * CFrame.new(-pivot)
+				part.CFrame = hasRot and (cframe * CFrame.Angles(rx, ry, rz)) or cframe
 			elseif hasRot then
 				part.CFrame = base * CFrame.new(offset) * CFrame.Angles(rx, ry, rz)
 			else
 				part.CFrame = base * CFrame.new(offset)
 			end
 		end
+	end
+end
+
+-- ===================== R15-АВАТАР =====================
+-- Настоящий скелет Roblox R15 (Players:CreateHumanoidModelFromDescription) со штатными анимациями
+-- ожидания и ходьбы. Причёски, головные уборы и аксессуары ролей — те же детали, что у модели выше,
+-- приваренные к голове/торсу/руке. Если что-то не получилось, NpcService оставляет модель из деталей.
+
+local Players = game:GetService("Players")
+
+-- Стандартные анимации R15 из скрипта Animate (принадлежат Roblox, работают в любом месте)
+local IDLE_ANIM = "rbxassetid://507766666"
+local WALK_ANIM = "rbxassetid://507777826"
+
+type AvatarState = {
+	root: BasePart,
+	humanoid: Humanoid,
+	neck: Motor6D?,
+	neckC0: CFrame?,
+	idle: AnimationTrack?,
+	walk: AnimationTrack?,
+	walking: boolean,
+}
+
+local avatars: { [Model]: AvatarState } = setmetatable({}, { __mode = "k" }) :: any
+
+local FEMININE = { eta = true, elena = true, goldgirl = true }
+
+local function weldTo(part: BasePart, target: BasePart, cframe: CFrame)
+	part.Anchored = false
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Massless = true
+	part.CFrame = cframe
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = target
+	weld.Part1 = part
+	weld.Parent = part
+end
+
+local function paint(model: Model, name: string, color: Color3, material: Enum.Material?)
+	local part = model:FindFirstChild(name)
+	if part and part:IsA("BasePart") then
+		part.Color = color
+		if material then
+			part.Material = material
+		end
+	end
+end
+
+--- R15-модель NPC. Возвращает nil, если Roblox не смог собрать аватар (нет сети, сбой API).
+function RigBuilder.buildAvatar(displayName: string, shirt: Color3, skin: Color3?, scale: number?, role: string?): Model?
+	local factor = scale or 1
+	local hash = nameHash(displayName)
+	local ok, result = pcall(function()
+		local desc = Instance.new("HumanoidDescription")
+		local feminine = role ~= nil and FEMININE[role] == true
+		desc.HeightScale = factor * (feminine and 0.97 or 1.04)
+		desc.WidthScale = factor * (feminine and 0.86 or 1)
+		desc.DepthScale = factor * (feminine and 0.9 or 1)
+		desc.HeadScale = factor
+		desc.BodyTypeScale = feminine and 0.15 or 0.3
+		desc.ProportionScale = 0
+		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not result then
+		warn(`[RigBuilder] R15-аватар для «{displayName}» не собран: {result}`)
+		return nil
+	end
+	local model = result :: Model
+	model.Name = displayName
+
+	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local humanoid = model:FindFirstChildOfClass("Humanoid")
+	local head = model:FindFirstChild("Head") :: BasePart?
+	local upper = model:FindFirstChild("UpperTorso") :: BasePart?
+	local lower = model:FindFirstChild("LowerTorso") :: BasePart?
+	local rightHand = model:FindFirstChild("RightHand") :: BasePart?
+	if not (root and humanoid and head and upper and lower) then
+		model:Destroy()
+		return nil
+	end
+
+	-- Скрипт Animate на сервере не работает, анимациями управляем сами; цвета ставим вручную
+	for _, child in model:GetChildren() do
+		if child.Name == "Animate" or child:IsA("BodyColors") or child:IsA("Shirt") or child:IsA("Pants") then
+			child:Destroy()
+		end
+	end
+	model:PivotTo(CFrame.new())
+	root.Anchored = true
+	root.Transparency = 1
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.CanCollide = false
+			descendant.CanTouch = false
+			if descendant ~= root then
+				descendant.Massless = true
+			end
+		end
+	end
+
+	-- Цвета: кожа, рубашка, брюки, обувь, перчатки
+	local skinColor = skin or Color3.fromRGB(240, 200, 160)
+	if role == "villager" and not skin then
+		skinColor = Color3.fromRGB(204, 218, 182)
+	elseif role == "catdiner" and not skin then
+		skinColor = Color3.fromRGB(248, 215, 145)
+	end
+	local hairColor = HAIR_PALETTE[hash % #HAIR_PALETTE + 1]
+	if role == "eta" then
+		hairColor = Color3.fromRGB(215, 140, 210)
+	elseif role == "elena" then
+		hairColor = Color3.fromRGB(145, 190, 240)
+	elseif role == "goldgirl" then
+		hairColor = Color3.fromRGB(245, 205, 75)
+	elseif role == "ging" or role == "razor" then
+		hairColor = Color3.fromRGB(28, 30, 38)
+	elseif role == "catdiner" then
+		hairColor = Color3.fromRGB(220, 150, 70)
+	end
+	local legColor = shirt:Lerp(Color3.fromRGB(38, 42, 58), 0.72)
+	local shoeColor = legColor:Lerp(Color3.fromRGB(16, 16, 22), 0.65)
+	local collarColor = shirt:Lerp(Color3.fromRGB(245, 245, 250), 0.45)
+	local handColor = skinColor
+	if role == "casino" or role == "portmaster" or role == "host" then
+		handColor = Color3.fromRGB(242, 242, 248)
+	elseif role == "goldguard" or role == "bandit" or role == "razor" then
+		handColor = Color3.fromRGB(55, 55, 65)
+	end
+	local sleeve = shirt
+	local forearm = (role == "beach" or role == "catdiner") and skinColor or shirt:Lerp(Color3.fromRGB(0, 0, 0), 0.06)
+
+	paint(model, "Head", skinColor)
+	paint(model, "UpperTorso", shirt, Enum.Material.Fabric)
+	paint(model, "LowerTorso", legColor, Enum.Material.Fabric)
+	for _, side in { "Left", "Right" } do
+		paint(model, side .. "UpperArm", sleeve, Enum.Material.Fabric)
+		paint(model, side .. "LowerArm", forearm, forearm == skinColor and Enum.Material.SmoothPlastic or Enum.Material.Fabric)
+		paint(model, side .. "Hand", handColor)
+		paint(model, side .. "UpperLeg", legColor, Enum.Material.Fabric)
+		paint(model, side .. "LowerLeg", legColor, Enum.Material.Fabric)
+		paint(model, side .. "Foot", shoeColor)
+	end
+
+	-- Лицо: убираем штатную наклейку, рисуем выразительное аниме-лицо
+	for _, child in head:GetChildren() do
+		if child:IsA("Decal") then
+			child:Destroy()
+		end
+	end
+	buildFace(head :: any, role, hash, hairColor, skinColor)
+
+	-- Детали одежды на торсе: воротник, пояс с пряжкой, пуговицы
+	local top = upper.Position.Y + upper.Size.Y / 2
+	local bottom = lower.Position.Y - lower.Size.Y / 2
+	local torsoCenter = Vector3.new(0, (top + bottom) / 2, 0)
+	local sx = upper.Size.X / 2
+	local sy = (top - bottom) / 2
+	local sz = upper.Size.Z
+	local beltY = lower.Position.Y + lower.Size.Y * 0.3
+	local function extra(name: string, size: Vector3, cframe: CFrame, color: Color3, target: BasePart, material: Enum.Material?)
+		local p = block(name, size, color, model, material)
+		weldTo(p, target, cframe)
+	end
+	extra("Collar", Vector3.new(upper.Size.X * 0.55, 0.16 * factor, upper.Size.Z * 1.06), CFrame.new(0, top - 0.06 * factor, 0), collarColor, upper, Enum.Material.Fabric)
+	extra("Belt", Vector3.new(lower.Size.X * 1.04, 0.2 * factor, lower.Size.Z * 1.08), CFrame.new(0, beltY, 0), Color3.fromRGB(58, 40, 28), lower, Enum.Material.Leather)
+	extra("Buckle", Vector3.new(0.3, 0.22, 0.06) * factor, CFrame.new(0, beltY, -lower.Size.Z * 0.56), Color3.fromRGB(235, 195, 70), lower, Enum.Material.Metal)
+	for index = 1, 3 do
+		local button = block("ShirtButton", Vector3.new(0.09, 0.09, 0.06) * factor, collarColor, model, nil, Enum.PartType.Ball)
+		weldTo(button, upper, CFrame.new(0, top - 0.35 * factor - (index - 1) * 0.28 * factor, -upper.Size.Z * 0.52))
+	end
+
+	-- Причёска и аксессуары роли: собираем в масштабе 1 и переносим на кости R15
+	local temp = Instance.new("Model")
+	local entries: { PartEntry } = {}
+	buildHair(entries, temp, role, hash, 1, hairColor)
+	accessories(entries, temp, role, 1, shirt)
+	local headScale = head.Size.Y / 1.4 -- старая голова 1.4 студа, новая — по размеру R15-головы
+	for _, entry in entries do
+		local p = entry.part
+		local rot = entry.rot and CFrame.Angles(entry.rot.X, entry.rot.Y, entry.rot.Z) or CFrame.identity
+		local offset = entry.offset
+		if p.Name == "RightArm_Mic" and rightHand then
+			p.Size *= factor
+			weldTo(p, rightHand, rightHand.CFrame * CFrame.new(0, -0.15 * factor, -0.25 * factor) * CFrame.Angles(math.rad(80), 0, 0))
+		elseif offset.Y >= 1.0 and not string.find(p.Name, "Spark") then
+			p.Size *= headScale
+			local local3 = (offset - Vector3.new(0, 1.7, 0)) * headScale
+			weldTo(p, head, head.CFrame * CFrame.new(local3) * rot)
+		else
+			p.Size *= sy
+			local local3 = Vector3.new(offset.X * sx, offset.Y * sy, offset.Z * sz)
+			weldTo(p, upper, CFrame.new(torsoCenter + local3) * rot)
+		end
+		p.Parent = model
+	end
+	temp:Destroy()
+
+	humanoid.DisplayName = displayName
+	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+	humanoid.NameDisplayDistance = 40
+	humanoid.BreakJointsOnDeath = false
+	humanoid.RequiresNeck = false
+	pcall(function()
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+		humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+	end)
+	model.PrimaryPart = root
+	model:SetAttribute("Avatar", true)
+
+	local neck = head:FindFirstChild("Neck")
+	avatars[model] = {
+		root = root,
+		humanoid = humanoid,
+		neck = if neck and neck:IsA("Motor6D") then neck else nil,
+		neckC0 = if neck and neck:IsA("Motor6D") then neck.C0 else nil,
+		idle = nil,
+		walk = nil,
+		walking = false,
+	}
+	return model
+end
+
+--- Запустить анимации. Вызывать, когда модель уже в workspace (иначе Animator не грузит треки).
+function RigBuilder.startAvatar(model: Model)
+	local state = avatars[model]
+	if not state then
+		return
+	end
+	pcall(function()
+		local animator = state.humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator")
+		animator.Parent = state.humanoid
+		local idle = Instance.new("Animation")
+		idle.AnimationId = IDLE_ANIM
+		local walk = Instance.new("Animation")
+		walk.AnimationId = WALK_ANIM
+		state.idle = animator:LoadAnimation(idle)
+		state.walk = animator:LoadAnimation(walk)
+		if state.idle then
+			state.idle.Looped = true
+			state.idle.Priority = Enum.AnimationPriority.Idle
+			state.idle:Play(0.3, 1, 0.9 + (nameHash(model.Name) % 20) / 100)
+		end
+		if state.walk then
+			state.walk.Looped = true
+			state.walk.Priority = Enum.AnimationPriority.Movement
+		end
+	end)
+end
+
+--- Поставить R15-аватар ногами на groundY лицом к lookAt; moving включает анимацию ходьбы.
+--- headYaw/headPitch — поворот головы через сустав шеи (взгляд на игрока).
+function RigBuilder.poseAvatar(model: Model, position: Vector3, groundY: number, lookAt: Vector3?, moving: boolean, walkSpeed: number, headYaw: number?, headPitch: number?)
+	local state = avatars[model]
+	if not state then
+		return
+	end
+	local root = state.root
+	local center = Vector3.new(position.X, groundY + state.humanoid.HipHeight + root.Size.Y / 2, position.Z)
+	local facing = lookAt and Vector3.new(lookAt.X, center.Y, lookAt.Z) or (center + Vector3.new(0, 0, -1))
+	if (facing - center).Magnitude < 0.05 then
+		facing = center + Vector3.new(0, 0, -1)
+	end
+	root.CFrame = CFrame.lookAt(center, facing)
+
+	if moving ~= state.walking then
+		state.walking = moving
+		if state.walk then
+			if moving then
+				state.walk:Play(0.25)
+				state.walk:AdjustSpeed(math.clamp(walkSpeed / 7, 0.4, 1.5))
+			else
+				state.walk:Stop(0.35)
+			end
+		end
+	end
+
+	if state.neck and state.neckC0 then
+		state.neck.C0 = state.neckC0 * CFrame.Angles(headPitch or 0, headYaw or 0, 0)
 	end
 end
 

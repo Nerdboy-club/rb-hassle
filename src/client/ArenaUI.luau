@@ -13,8 +13,10 @@ local SIZE_NAMES = { [2] = "Дуо", [3] = "Трио", [4] = "Квартет" }
 
 local function send(action: string, extra: { [string]: any }?)
 	local payload = { action = action }
-	for key, value in extra or {} do
-		payload[key] = value
+	if extra then
+		for key, value in extra do
+			payload[key] = value
+		end
 	end
 	Remotes.ArenaAction:FireServer(payload)
 end

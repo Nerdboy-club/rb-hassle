@@ -33,9 +33,10 @@ local function block(name: string, size: Vector3, color: Color3, material: Enum.
 end
 
 local function build()
-	model = Instance.new("Folder")
-	model.Name = "GreedBook"
-	model.Parent = workspace
+	local f = Instance.new("Folder")
+	f.Name = "GreedBook"
+	f.Parent = workspace
+	model = f
 	local leather = Color3.fromRGB(96, 52, 34)
 	local gold = Color3.fromRGB(240, 200, 90)
 
@@ -110,25 +111,45 @@ local function destroy()
 	table.clear(parts)
 end
 
+--- Точка, где книга парит перед игроком (даже если сейчас не показана).
+function BookModel.getAnchor(): CFrame?
+	local character = Players.LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return nil
+	end
+	local flat = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
+	if flat.Magnitude < 0.01 then
+		flat = Vector3.new(0, 0, -1)
+	end
+	flat = flat.Unit
+	local bob = math.sin(os.clock() * 2) * 0.15
+	local position = root.Position + flat * DISTANCE + Vector3.new(0, 1.2 + bob, 0)
+	return CFrame.lookAt(position, root.Position + Vector3.new(0, 1.2 + bob, 0))
+end
+
+--- Куда летит карта: в раскрытую книгу или в точку, где она появится.
+function BookModel.getTargetPosition(): Vector3?
+	if parts.pages then
+		return parts.pages.Position
+	end
+	local anchor = BookModel.getAnchor()
+	return anchor and anchor.Position
+end
+
+function BookModel.isOpen(): boolean
+	return model ~= nil
+end
+
 local function follow()
 	if connection then
 		return
 	end
 	connection = RunService.RenderStepped:Connect(function()
-		local character = Players.LocalPlayer.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if not root or not model then
-			return
+		local base = BookModel.getAnchor()
+		if base and model then
+			layout(base, progress.Value)
 		end
-		local flat = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-		if flat.Magnitude < 0.01 then
-			flat = Vector3.new(0, 0, -1)
-		end
-		flat = flat.Unit
-		local bob = math.sin(os.clock() * 2) * 0.15
-		local position = root.Position + flat * DISTANCE + Vector3.new(0, 1.2 + bob, 0)
-		local base = CFrame.lookAt(position, root.Position + Vector3.new(0, 1.2 + bob, 0))
-		layout(base, progress.Value)
 	end)
 end
 

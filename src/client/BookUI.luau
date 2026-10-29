@@ -1,6 +1,7 @@
 -- Книга: 100 указанных слотов, 45 свободных, рука, список встреченных игроков, справка.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CardUse = require(Shared.CardUse)
@@ -18,22 +19,75 @@ local BookModel = require(script.Parent.BookModel)
 
 local BookUI = {}
 
+type Bind = { kind: string, id: number, uid: number? }
+
+local KEY_NAMES: { [Enum.KeyCode]: string } = {
+	[Enum.KeyCode.One] = "1",
+	[Enum.KeyCode.Two] = "2",
+	[Enum.KeyCode.Three] = "3",
+	[Enum.KeyCode.Four] = "4",
+	[Enum.KeyCode.Five] = "5",
+	[Enum.KeyCode.Six] = "6",
+	[Enum.KeyCode.Seven] = "7",
+	[Enum.KeyCode.Eight] = "8",
+	[Enum.KeyCode.Nine] = "9",
+	[Enum.KeyCode.Zero] = "0",
+	[Enum.KeyCode.Space] = "Пробел",
+	[Enum.KeyCode.LeftShift] = "Shift",
+	[Enum.KeyCode.RightShift] = "Shift",
+	[Enum.KeyCode.LeftControl] = "Ctrl",
+	[Enum.KeyCode.RightControl] = "Ctrl",
+	[Enum.KeyCode.LeftAlt] = "Alt",
+	[Enum.KeyCode.RightAlt] = "Alt",
+	[Enum.KeyCode.Return] = "Enter",
+	[Enum.KeyCode.Backspace] = "Backspace",
+}
+
+local RESERVED_KEYS: { [Enum.KeyCode]: boolean } = {
+	[Enum.KeyCode.Tab] = true,
+	[Enum.KeyCode.G] = true,
+	[Enum.KeyCode.T] = true,
+	[Enum.KeyCode.Y] = true,
+	[Enum.KeyCode.E] = true,
+	[Enum.KeyCode.Escape] = true,
+	[Enum.KeyCode.Slash] = true,
+	[Enum.KeyCode.Unknown] = true,
+}
+
+local function keyName(code: Enum.KeyCode): string
+	return KEY_NAMES[code] or code.Name
+end
+
+local function cardName(id: number): string
+	local card = Cards.get(id)
+	return card and card.name or ("карта %d"):format(id)
+end
+
 local HELP = table.concat({
 	"КАК ИГРАТЬ",
 	"• Подберите предмет — он станет картой в руке. У вас минута, чтобы вложить её в книгу, иначе карта снова станет предметом.",
 	"• Цель — заполнить все 100 слотов. Копии-дубликаты и карты заклинаний лежат в 45 свободных слотах.",
 	"• У каждого ранга свой лимит копий на сервере: пока он выбран, предмет в карту не превращается. «Вернуть в исходное» освобождает лимит.",
 	"• «Получить» (G) превращает карту в настоящую вещь: заклинание срабатывает, зелье лечит, йены попадают в кошелёк. Обратно в карту она уже не вернётся.",
+	"• В книге можно закрепить карту за клавишей: «Добавить бинд» → выберите карту → нажмите клавишу. Бинд срабатывает только при открытой книге.",
 	"• Тен (T) снижает урон от монстров, Зетсу (Y) скрывает вас от них. Пузырьковая лошадь ловится связкой «Зетсу, затем Тен».",
 	"• Йены существуют только в виде карты «Кошелёк». Заклинания продаются лишь в Масадоре, особые карты Дориаса — только за азартные игры.",
 	"• Закончите игру — заполните все 100 слотов (последняя карта — Благословение правителя в Лимейро). Выход — через башню Елены.",
 }, "\n\n")
 
-function BookUI.create(gui: ScreenGui)
+function BookUI.create(gui: ScreenGui, blocked: (() -> boolean)?)
 	local isOpen = false
 	local tab = "slots"
 	local mode = "normal" -- "gain": подсказка про Получить
 	local selected: { kind: string, id: number, uid: number? }? = nil
+	local bindings: { [Enum.KeyCode]: Bind } = {}
+	local bindMode = false
+	local awaitingKey = false
+	local pendingBind: Bind? = nil
+	local lastBindUse = 0
+	local isBlocked = blocked or function()
+		return false
+	end
 
 	local root = Theme.frame(gui, UDim2.fromOffset(960, 600), UDim2.fromScale(0.5, 0.5), Theme.bg)
 	root.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -61,7 +115,7 @@ function BookUI.create(gui: ScreenGui)
 	tabsFrame.BackgroundTransparency = 1
 	local tabsLayout = Instance.new("UIListLayout")
 	tabsLayout.FillDirection = Enum.FillDirection.Horizontal
-	tabsLayout.Padding = UDim.new(0, 6)
+	tabsLayout.Padding = UDim.new(0, 4)
 	tabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	tabsLayout.Parent = tabsFrame
 
@@ -104,15 +158,44 @@ function BookUI.create(gui: ScreenGui)
 		TextSize = 13,
 	})
 
+	local bindButton = Theme.button(root, "＋ Добавить бинд", UDim2.fromOffset(170, 22), UDim2.new(1, -188, 0, 109), Theme.panelLight)
+	bindButton.TextSize = 12
+
 	local confirm = Theme.frame(root, UDim2.fromScale(1, 1), nil, Color3.fromRGB(0, 0, 0))
 	confirm.BackgroundTransparency = 0.45
 	confirm.Visible = false
+	confirm.Active = true
 	confirm.ZIndex = 30
 	Theme.corner(confirm, 16)
 
+	local keyPrompt = Theme.frame(root, UDim2.fromScale(1, 1), nil, Color3.fromRGB(0, 0, 0))
+	keyPrompt.BackgroundTransparency = 0.45
+	keyPrompt.Visible = false
+	keyPrompt.ZIndex = 24
+	keyPrompt.Active = true
+	Theme.corner(keyPrompt, 16)
+	local keyBox = Theme.frame(keyPrompt, UDim2.fromOffset(440, 160), UDim2.fromScale(0.5, 0.5), Theme.panel)
+	keyBox.AnchorPoint = Vector2.new(0.5, 0.5)
+	keyBox.ZIndex = 25
+	Theme.corner(keyBox, 12)
+	Theme.stroke(keyBox, Theme.accent, 2)
+	local keyTitle = Theme.label(keyBox, "", UDim2.new(1, -32, 0, 28), UDim2.fromOffset(16, 14), {
+		Font = Enum.Font.GothamBold,
+		TextSize = 18,
+		TextColor3 = Theme.gold,
+	})
+	keyTitle.ZIndex = 26
+	local keyHint = Theme.label(keyBox, "", UDim2.new(1, -32, 0, 48), UDim2.fromOffset(16, 48), {
+		TextSize = 14,
+		TextColor3 = Theme.muted,
+	})
+	keyHint.ZIndex = 26
+	local keyCancel = Theme.button(keyBox, "Отмена", UDim2.fromOffset(180, 34), UDim2.new(0.5, -90, 1, -46), Theme.panelLight)
+	keyCancel.ZIndex = 26
+
 	local function clear(container: Instance)
 		for _, child in container:GetChildren() do
-			if not child:IsA("UIListLayout") and not child:IsA("UIGridLayout") and not child:IsA("UIPadding") then
+			if not child:IsA("UIPadding") then
 				child:Destroy()
 			end
 		end
@@ -146,7 +229,97 @@ function BookUI.create(gui: ScreenGui)
 
 	local render: () -> ()
 
+	local function findOwned(bind: Bind): boolean
+		local data = State.data
+		if not data then
+			return false
+		end
+		if bind.kind == "slot" then
+			return State.ownsSlot(bind.id)
+		end
+		for _, entry in data.free do
+			if entry.uid == bind.uid and entry.id == bind.id then
+				return true
+			end
+		end
+		return false
+	end
+
+	local function pruneBindings()
+		if not State.data then
+			return
+		end
+		for code, bind in bindings do
+			if not findOwned(bind) then
+				bindings[code] = nil
+			end
+		end
+	end
+
+	local function resetBindFlow()
+		bindMode = false
+		awaitingKey = false
+		pendingBind = nil
+		keyPrompt.Visible = false
+	end
+
+	local function closeKeyPrompt()
+		resetBindFlow()
+		render()
+	end
+
+	local function askKey(bind: Bind)
+		bindMode = false
+		pendingBind = bind
+		awaitingKey = true
+		selected = { kind = bind.kind, id = bind.id, uid = bind.uid }
+		keyTitle.Text = ("Клавиша для «%s»"):format(cardName(bind.id))
+		keyHint.Text = "Нажмите клавишу. Бинд работает только при открытой книге и сразу использует карту."
+		keyPrompt.Visible = true
+		render()
+	end
+
+	local function useBind(bind: Bind, code: Enum.KeyCode)
+		local now = os.clock()
+		if now - lastBindUse < 0.6 then
+			return
+		end
+		lastBindUse = now
+		if not findOwned(bind) then
+			bindings[code] = nil
+			render()
+			banner.Text = ("Карта «%s» больше не в книге — бинд снят."):format(cardName(bind.id))
+			return
+		end
+		selected = { kind = bind.kind, id = bind.id, uid = bind.uid }
+		Remotes.BinderAction:FireServer({
+			action = "gain",
+			slot = bind.kind == "slot" and bind.id or nil,
+			uid = bind.uid,
+		})
+		render()
+		banner.Text = ("Бинд сработал: «%s»."):format(cardName(bind.id))
+	end
+
+	keyCancel.Activated:Connect(closeKeyPrompt)
+
 	local function select(kind: string, id: number, uid: number?)
+		if bindMode then
+			local card = Cards.get(id)
+			if not card then
+				return
+			end
+			local owned = kind == "free" or State.ownsSlot(id)
+			if not owned then
+				return
+			end
+			if not CardUse.usable(card) then
+				banner.Text = "У этой карты нет эффекта — выберите другую."
+				return
+			end
+			askKey({ kind = kind, id = id, uid = uid })
+			return
+		end
 		selected = { kind = kind, id = id, uid = uid }
 		render()
 	end
@@ -226,6 +399,63 @@ function BookUI.create(gui: ScreenGui)
 	local renderMap: () -> ()
 	local renderRanks: (any) -> ()
 
+	local function renderBinds()
+		local layout = Instance.new("UIListLayout")
+		layout.Padding = UDim.new(0, 8)
+		layout.Parent = scroll
+		Theme.label(scroll, "Бинды карт", UDim2.new(1, -12, 0, 24), nil, {
+			Font = Enum.Font.GothamBold,
+			TextSize = 17,
+		})
+		Theme.label(
+			scroll,
+			"Нажмите «Добавить бинд», выберите карту и клавишу. Бинд работает только при открытой книге и сразу использует карту.",
+			UDim2.new(1, -12, 0, 40),
+			nil,
+			{ TextSize = 13, TextColor3 = Theme.muted }
+		)
+		local ordered: { { code: Enum.KeyCode, bind: Bind } } = {}
+		for code, bind in bindings do
+			table.insert(ordered, { code = code, bind = bind })
+		end
+		table.sort(ordered, function(a, b)
+			return keyName(a.code) < keyName(b.code)
+		end)
+		if #ordered == 0 then
+			Theme.label(scroll, "Пока нет биндов.", UDim2.new(1, -12, 0, 30), nil, { TextColor3 = Theme.muted })
+			return
+		end
+		for index, entry in ordered do
+			local bind = entry.bind
+			local row = Theme.frame(scroll, UDim2.new(1, -12, 0, 44), nil, Theme.panelLight)
+			row.LayoutOrder = index
+			Theme.corner(row, 8)
+			Theme.label(
+				row,
+				("%s — %s"):format(keyName(entry.code), cardName(bind.id)),
+				UDim2.new(1, -190, 0, 20),
+				UDim2.fromOffset(10, 4),
+				{ Font = Enum.Font.GothamBold, TextSize = 14 }
+			)
+			local place = bind.kind == "slot" and ("Слот %d"):format(bind.id) or "Свободный слот"
+			Theme.label(row, place, UDim2.new(1, -190, 0, 16), UDim2.fromOffset(10, 24), {
+				TextSize = 12,
+				TextColor3 = Theme.muted,
+			})
+			local use = Theme.button(row, "Использовать", UDim2.fromOffset(100, 28), UDim2.new(1, -170, 0, 8), Theme.good)
+			use.TextSize = 12
+			use.Activated:Connect(function()
+				useBind(bind, entry.code)
+			end)
+			local remove = Theme.button(row, "Снять", UDim2.fromOffset(60, 28), UDim2.new(1, -64, 0, 8), Theme.panel)
+			remove.TextSize = 12
+			remove.Activated:Connect(function()
+				bindings[entry.code] = nil
+				render()
+			end)
+		end
+	end
+
 	local function renderGrid()
 		clear(scroll)
 		local data = State.data
@@ -288,6 +518,8 @@ function BookUI.create(gui: ScreenGui)
 					button.LayoutOrder = index
 				end
 			end
+		elseif tab == "binds" then
+			renderBinds()
 		elseif tab == "map" then
 			renderMap()
 		elseif tab == "ranks" then
@@ -454,6 +686,7 @@ function BookUI.create(gui: ScreenGui)
 		local list = {
 			{ id = "slots", label = "Карты" },
 			{ id = "free", label = "Свободные" },
+			{ id = "binds", label = "Бинды" },
 			{ id = "map", label = "Карта" },
 			{ id = "ranks", label = "Ранги" },
 			{ id = "players", label = "Игроки" },
@@ -467,12 +700,14 @@ function BookUI.create(gui: ScreenGui)
 		end
 		table.clear(tabButtons)
 		for index, entry in list do
-			local button = Theme.button(tabsFrame, entry.label, UDim2.fromOffset(78, 30), nil, tab == entry.id and Theme.accent or Theme.panelLight)
+			local button = Theme.button(tabsFrame, entry.label, UDim2.fromOffset(66, 30), nil, tab == entry.id and Theme.accent or Theme.panelLight)
 			button.LayoutOrder = index
+			button.TextSize = 12
 			button.TextColor3 = tab == entry.id and Color3.fromRGB(10, 18, 26) or Theme.text
 			button.Activated:Connect(function()
 				tab = entry.id
 				selected = nil
+				bindMode = false
 				render()
 			end)
 			tabButtons[entry.id] = button
@@ -480,6 +715,7 @@ function BookUI.create(gui: ScreenGui)
 	end
 
 	render = function()
+		pruneBindings()
 		local data = State.data
 		if data then
 			local owned = #data.slots
@@ -493,7 +729,17 @@ function BookUI.create(gui: ScreenGui)
 		else
 			stats.Text = "Загрузка…"
 		end
-		banner.Text = mode == "gain" and "Выберите карту и нажмите «Получить» — она превратится в настоящую вещь." or ""
+		bindButton.Text = bindMode and "✕ Отмена бинда" or "＋ Добавить бинд"
+		bindButton.BackgroundColor3 = bindMode and Theme.warn or Theme.panelLight
+		if awaitingKey and pendingBind then
+			banner.Text = ("Нажмите клавишу для «%s». Esc — отмена."):format(cardName(pendingBind.id))
+		elseif bindMode then
+			banner.Text = "Выберите карту для бинда, затем нажмите клавишу."
+		elseif mode == "gain" then
+			banner.Text = "Выберите карту и нажмите «Получить» — она превратится в настоящую вещь."
+		else
+			banner.Text = ""
+		end
 		renderTabs()
 		renderHand()
 		renderGrid()
@@ -519,12 +765,92 @@ function BookUI.create(gui: ScreenGui)
 			root.Visible = false
 			pcall(BookModel.hide)
 			confirm.Visible = false
+			resetBindFlow()
 			mode = "normal"
 		end
 	end
 
 	closeButton.Activated:Connect(function()
 		setOpen(false)
+	end)
+
+	bindButton.Activated:Connect(function()
+		if bindMode then
+			bindMode = false
+			render()
+			return
+		end
+		if not State.data then
+			return
+		end
+		if not UserInputService.KeyboardEnabled then
+			banner.Text = "Для бинда карт нужна клавиатура."
+			return
+		end
+		bindMode = true
+		selected = nil
+		mode = "normal"
+		if tab ~= "slots" and tab ~= "free" then
+			tab = "slots"
+		end
+		render()
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed or not isOpen or not root.Visible then
+			return
+		end
+		if awaitingKey then
+			if input.UserInputType ~= Enum.UserInputType.Keyboard then
+				return
+			end
+			local code = input.KeyCode
+			if code == Enum.KeyCode.Escape then
+				closeKeyPrompt()
+				return
+			end
+			if code == Enum.KeyCode.Unknown then
+				return
+			end
+			if RESERVED_KEYS[code] then
+				keyHint.Text = ("Клавиша %s занята игрой. Нажмите другую."):format(keyName(code))
+				return
+			end
+			local existing = bindings[code]
+			if existing then
+				keyHint.Text = ("%s уже занята картой «%s». Нажмите другую."):format(keyName(code), cardName(existing.id))
+				return
+			end
+			local bind = pendingBind
+			if not bind then
+				closeKeyPrompt()
+				return
+			end
+			bindings[code] = bind
+			pendingBind = nil
+			awaitingKey = false
+			keyPrompt.Visible = false
+			selected = { kind = bind.kind, id = bind.id, uid = bind.uid }
+			mode = "normal"
+			tab = "binds"
+			render()
+			return
+		end
+		if confirm.Visible then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.Escape and bindMode then
+			bindMode = false
+			render()
+			return
+		end
+		if bindMode or isBlocked() then
+			return
+		end
+		local bind = bindings[input.KeyCode]
+		if bind then
+			useBind(bind, input.KeyCode)
+		end
 	end)
 
 	-- только новый снимок книги перерисовывает окно: эффекты и стойки (приходят каждые полсекунды) не должны сбрасывать прокрутку
@@ -573,6 +899,7 @@ function BookUI.create(gui: ScreenGui)
 			setOpen(not isOpen)
 		end,
 		open = function(openMode: string?)
+			resetBindFlow()
 			mode = openMode or "normal"
 			if mode == "gain" then
 				tab = "free"
@@ -585,6 +912,9 @@ function BookUI.create(gui: ScreenGui)
 		end,
 		isOpen = function()
 			return isOpen
+		end,
+		isCapturingKey = function()
+			return awaitingKey
 		end,
 	}
 end

@@ -18,6 +18,7 @@ local Ambient = require(script.Parent.Ambient)
 local AttackFx = require(script.Parent.AttackFx)
 local ArenaUI = require(script.Parent.ArenaUI)
 local ChoiceUI = require(script.Parent.ChoiceUI)
+local PickupFx = require(script.Parent.PickupFx)
 local SpellFx = require(script.Parent.SpellFx)
 
 local player = Players.LocalPlayer
@@ -34,15 +35,19 @@ pcall(function()
 	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
 end)
 
-local book = BookUI.create(gui)
+local shop: any, arena: any, choice: any
+local book = BookUI.create(gui, function()
+	return (shop and shop.isOpen()) or (arena and arena.isOpen()) or (choice and choice.isOpen()) or false
+end)
 DialogUI.create(gui)
-local shop = ShopUI.create(gui)
-local arena = ArenaUI.create(gui)
-local choice = ChoiceUI.create(gui)
+shop = ShopUI.create(gui)
+arena = ArenaUI.create(gui)
+choice = ChoiceUI.create(gui)
 QuizUI.create(gui)
 Effects.start()
 pcall(Ambient.start)
 pcall(SpellFx.start)
+pcall(PickupFx.start)
 
 -- заставка при входе
 do
@@ -88,7 +93,7 @@ end
 --- Нижний регистр с кириллицей (string.lower работает только с ASCII).
 local function lowerCyrillic(text: string): string
 	local out = {}
-	for _, code in utf8.codepoint(text, 1, -1) and { utf8.codepoint(text, 1, -1) } or {} do
+	for _, code in utf8.codes(text) do
 		if code >= 0x410 and code <= 0x42F then
 			code += 32
 		elseif code == 0x401 then
@@ -231,6 +236,9 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then
 		return
 	end
+	if book.isCapturingKey() then
+		return
+	end
 	if State.phase == "lobby" then
 		return
 	end
@@ -266,7 +274,7 @@ end)
 
 -- «/» ставит курсор в строку слов кольца
 UserInputService.InputBegan:Connect(function(input, processed)
-	if not processed and input.KeyCode == Enum.KeyCode.Slash then
+	if not processed and not book.isCapturingKey() and input.KeyCode == Enum.KeyCode.Slash then
 		local box = gui:FindFirstChildWhichIsA("TextBox", true)
 		if box then
 			task.defer(function()

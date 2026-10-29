@@ -2,5 +2,8 @@
 *.rbxlx
 .DS_Store
 .claude/
+.brud/
+sourcemap.json
+plugin.js
 
 tools/check/.build/

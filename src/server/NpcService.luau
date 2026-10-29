@@ -69,6 +69,9 @@ type Actor = {
 	waitUntil: number,
 	phase: number,
 	facing: Vector3,
+	faceTarget: Vector3,
+	headYaw: number,
+	headPitch: number,
 }
 
 local actors: { Actor } = {}
@@ -688,9 +691,10 @@ end
 function NpcService.animate(actor: Actor, dt: number, now: number)
 	local watching, distance = nearestPlayerPosition(actor.position, NOTICE_DISTANCE)
 	local moving = false
+	local desired = actor.faceTarget
 
 	if watching then
-		actor.facing = watching
+		desired = watching
 	end
 
 	if actor.roam and (not watching or distance > 7) then
@@ -706,9 +710,7 @@ function NpcService.animate(actor: Actor, dt: number, now: number)
 					local nextX = actor.position.X + unit.X * WALK_SPEED * dt
 					local nextZ = actor.position.Z + unit.Z * WALK_SPEED * dt
 					actor.position = Vector3.new(nextX, WorldBuilder.terrainY(nextX, nextZ), nextZ)
-					if not watching then
-						actor.facing = actor.position + unit * 10
-					end
+					desired = actor.position + unit * 10
 					moving = true
 				end
 			end
@@ -724,9 +726,53 @@ function NpcService.animate(actor: Actor, dt: number, now: number)
 		end
 	end
 
+	actor.faceTarget = desired
+	-- тело доворачивается плавно, без мгновенного «щелчка» при появлении игрока
+	actor.facing = actor.facing:Lerp(desired, math.clamp(dt * (watching and 6 or 3.5), 0, 1))
+	if (actor.facing - actor.position).Magnitude < 0.05 then
+		actor.facing = actor.position + Vector3.new(0, 0, -1)
+	end
+
+	-- голова смотрит на игрока быстрее тела: получается естественное «сначала взгляд, потом поворот»
+	local lookYaw = 0
+	local lookPitch = 0
+	if watching then
+		local head = actor.position + Vector3.new(0, 4.7 * actor.scale, 0)
+		local lookTarget = watching + Vector3.new(0, 2, 0)
+		local delta = lookTarget - head
+		local flat = Vector3.new(delta.X, 0, delta.Z)
+		local body = actor.facing - actor.position
+		body = Vector3.new(body.X, 0, body.Z)
+		if flat.Magnitude > 0.1 and body.Magnitude > 0.1 then
+			local targetYaw = math.atan2(-flat.X, -flat.Z)
+			local bodyYaw = math.atan2(-body.X, -body.Z)
+			local diff = (targetYaw - bodyYaw + math.pi) % (math.pi * 2) - math.pi
+			lookYaw = math.clamp(diff, -0.55, 0.55)
+		end
+		lookPitch = math.clamp(math.atan2(delta.Y, math.max(flat.Magnitude, 0.1)), -0.2, 0.24)
+	end
+	actor.headYaw += (lookYaw - actor.headYaw) * math.clamp(dt * 9, 0, 1)
+	actor.headPitch += (lookPitch - actor.headPitch) * math.clamp(dt * 9, 0, 1)
+
 	actor.phase += dt * (moving and 7 or 1.4)
-	local swing = moving and math.sin(actor.phase) * 0.6 or math.sin(actor.phase) * 0.04
-	RigBuilder.place(actor.model, actor.position, actor.position.Y, actor.facing, actor.scale, swing)
+	if actor.model:GetAttribute("Avatar") then
+		-- R15-аватар: ходьба и дыхание — настоящие анимации, голова поворачивается суставом шеи
+		RigBuilder.poseAvatar(actor.model, actor.position, actor.position.Y, actor.facing, moving, WALK_SPEED, actor.headYaw, actor.headPitch)
+		return
+	end
+	local swing = moving and math.sin(actor.phase) * 0.55 or math.sin(actor.phase * 0.8) * 0.03
+	local breathe = moving and math.abs(math.sin(actor.phase)) * 0.04 or math.sin(actor.phase * 0.55) * 0.035
+	RigBuilder.place(
+		actor.model,
+		actor.position,
+		actor.position.Y,
+		actor.facing,
+		actor.scale,
+		swing,
+		breathe,
+		actor.headYaw,
+		actor.headPitch
+	)
 end
 
 -- вывеска над головой: чем занимается житель (видна с 60 студов)
@@ -788,7 +834,7 @@ function NpcService.start()
 		model.Parent = folder
 		addRoleTag(model, npc, scale)
 		npcHome[npcId] = position
-		table.insert(actors, {
+		local actor: Actor = {
 			model = model,
 			scale = scale,
 			home = position,
@@ -798,7 +844,11 @@ function NpcService.start()
 			waitUntil = 0,
 			phase = rng:NextNumber(0, 6.28),
 			facing = Vector3.new(zone.x, position.Y, zone.z + 60),
-		})
+			faceTarget = Vector3.new(zone.x, position.Y, zone.z + 60),
+			headYaw = 0,
+			headPitch = 0,
+		}
+		table.insert(actors, actor)
 
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.ActionText = "Поговорить"
@@ -809,6 +859,23 @@ function NpcService.start()
 		prompt.Parent = model.PrimaryPart
 		prompt.Triggered:Connect(function(player)
 			open(player, npcId)
+		end)
+
+		-- Модель из деталей видна сразу; R15-аватар собирается в фоне (запрос к Roblox может ждать)
+		-- и подменяет её. Если аватар не собрался — NPC остаётся прежним.
+		task.spawn(function()
+			local avatar = RigBuilder.buildAvatar(npc.name, npc.shirt, npc.skin, scale, npc.role)
+			if not avatar then
+				return
+			end
+			local old = actor.model
+			RigBuilder.poseAvatar(avatar, actor.position, actor.position.Y, actor.facing, false, WALK_SPEED)
+			avatar.Parent = folder
+			RigBuilder.startAvatar(avatar)
+			addRoleTag(avatar, npc, scale)
+			prompt.Parent = avatar.PrimaryPart
+			actor.model = avatar
+			old:Destroy()
 		end)
 	end
 

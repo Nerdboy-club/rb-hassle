@@ -21,14 +21,30 @@
       "$className": "Workspace",
       "$properties": {
         "StreamingEnabled": false
+      },
+      "Terrain": {
+        "$className": "Terrain",
+        "$properties": {
+          "Decoration": true
+        }
+      }
+    },
+    "MaterialService": {
+      "$className": "MaterialService",
+      "$properties": {
+        "Use2022Materials": true
       }
     },
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "ClockTime": 14,
-        "Brightness": 2.4,
-        "GlobalShadows": true
+        "Technology": "Future",
+        "ClockTime": 15.6,
+        "Brightness": 2.15,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.35,
+        "EnvironmentDiffuseScale": 0.55,
+        "EnvironmentSpecularScale": 0.55
       }
     }
   }

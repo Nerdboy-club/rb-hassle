@@ -2,6 +2,8 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
@@ -30,12 +32,22 @@ type Mon = {
 	model: Model,
 	root: Part,
 	bar: Frame,
+	parts: { [string]: BasePart },
+	baseCFrames: { [string]: CFrame },
+	highlight: Highlight,
+	animSeed: number,
+	movingUntil: number,
+	windupUntil: number,
+	windupTarget: Player?,
+	flashUntil: number,
 	hp: number,
 	maxHp: number,
 	alive: boolean,
 	home: Vector3,
 	position: Vector3,
 	heading: number,
+	visualHeading: number,
+	lookYaw: number,
 	target: Player?,
 	targetUntil: number,
 	nextAttack: number,
@@ -83,7 +95,7 @@ local function groundFor(mon: Mon, x: number, z: number): number
 	return mon.groundY or groundAt(x, z)
 end
 
-local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Frame)
+local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Frame, { [string]: BasePart }, { [string]: CFrame }, Highlight)
 	local model = Instance.new("Model")
 	model.Name = def.name
 
@@ -96,6 +108,8 @@ local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Fra
 	root.Parent = model
 	model.PrimaryPart = root
 
+	local parts: { [string]: BasePart } = {}
+	local baseCFrames: { [string]: CFrame } = {}
 	local top = 0
 	for _, spec in def.parts do
 		local part = Instance.new("Part")
@@ -123,8 +137,19 @@ local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Fra
 		part.CFrame = cf
 		part:SetAttribute("Monster", true)
 		part.Parent = model
+		parts[spec.name] = part
+		baseCFrames[spec.name] = cf
 		top = math.max(top, spec.offset.Y + spec.size.Y / 2)
 	end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "HitFlash"
+	highlight.FillColor = Color3.fromRGB(255, 244, 214)
+	highlight.FillTransparency = 1
+	highlight.OutlineColor = Color3.fromRGB(255, 230, 170)
+	highlight.OutlineTransparency = 1
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent = model
 
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(90, 22)
@@ -158,7 +183,7 @@ local function buildModel(def: Monsters.Monster, key: string): (Model, Part, Fra
 	if key == "KingBeetle" then
 		back.Visible = false -- жук падает не от урона, а от серии сильных ударов
 	end
-	return model, root, fill
+	return model, root, fill, parts, baseCFrames, highlight
 end
 
 local function place(mon: Mon, lift: number?)
@@ -166,7 +191,142 @@ local function place(mon: Mon, lift: number?)
 	mon.position = Vector3.new(mon.position.X, ground, mon.position.Z)
 	local faint = os.clock() < mon.faintUntil
 	local rollAngle = faint and math.pi / 2 or 0
-	mon.model:PivotTo(CFrame.new(mon.position + Vector3.new(0, lift or 0, 0)) * CFrame.Angles(0, mon.heading, rollAngle))
+	-- доворачиваем модель к новому направлению плавно, чтобы моб не «щёлкал» корпусом
+	local turn = (mon.heading - mon.visualHeading + math.pi) % (math.pi * 2) - math.pi
+	mon.visualHeading += turn * 0.32
+	mon.model:PivotTo(CFrame.new(mon.position + Vector3.new(0, lift or 0, 0)) * CFrame.Angles(0, mon.visualHeading, rollAngle))
+end
+
+local function isHeadPart(name: string): boolean
+	return name:find("Head") ~= nil
+		or name:find("Eye") ~= nil
+		or name:find("Pupil") ~= nil
+		or name:find("Nostril") ~= nil
+		or name:find("Mouth") ~= nil
+		or name:find("Nose") ~= nil
+		or name:find("Snout") ~= nil
+		or name:find("Fang") ~= nil
+		or name:find("Tusk") ~= nil
+		or name:find("Horn") ~= nil
+		or name:find("Brow") ~= nil
+		or name:find("Ear") ~= nil
+end
+
+local function getLimbSign(name: string): number
+	-- Походка: диагональные пары у четвероногих, противофаза у двуногих, штатив у насекомых
+	if name:find("FL") or name:find("FrontL") then
+		return 1
+	elseif name:find("FR") or name:find("FrontR") then
+		return -1
+	elseif name:find("BL") or name:find("BackL") then
+		return -1
+	elseif name:find("BR") or name:find("BackR") then
+		return 1
+	elseif name:find("ML") or name:find("MidL") then
+		return -1
+	elseif name:find("MR") or name:find("MidR") then
+		return 1
+	elseif name:find("L") then
+		return 1
+	elseif name:find("R") then
+		return -1
+	end
+	return 1
+end
+
+--- Живая анатомическая анимация мобов:
+--- - естественная походка (диагональные пары, покачивание корпуса, вращение от сустава, а не центра детали);
+--- - дыхание и оглядывание в покое;
+--- - поворот головы к цели;
+--- - виляние хвоста с затуханием;
+--- - замах и выпад при атаке.
+local function animate(mon: Mon, now: number)
+	local windupLeft = mon.windupUntil - now
+	local windup = windupLeft > 0 and math.clamp(1 - windupLeft / 0.35, 0, 1) or 0
+	local pivot = mon.model:GetPivot()
+	if windup > 0 then
+		pivot *= CFrame.Angles(math.rad(-11) * windup, 0, 0) -- наклон корпуса перед ударом
+	end
+
+	local moving = now < mon.movingUntil
+	local walkCycle = now * 9 + mon.animSeed
+	local walk = moving and math.sin(walkCycle) or 0
+	local walkDouble = moving and math.sin(walkCycle * 2) or 0
+	local idle = math.sin(now * 2.0 + mon.animSeed)
+	local strike = -0.75 * windup * windup
+
+	-- Определение взгляда на игрока
+	local desiredYaw = 0
+	local targetPlayer = mon.windupTarget or mon.target
+	if targetPlayer and targetPlayer.Character then
+		local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if targetRoot and targetRoot:IsA("BasePart") then
+			local delta = targetRoot.Position - mon.position
+			local desired = math.atan2(-delta.X, -delta.Z)
+			local diff = (desired - mon.visualHeading + math.pi) % (math.pi * 2) - math.pi
+			desiredYaw = math.clamp(diff, -0.6, 0.6) * 0.5
+		end
+	end
+	mon.lookYaw += (desiredYaw - mon.lookYaw) * 0.22
+
+	local headBase = mon.baseCFrames["Head"] or mon.baseCFrames["BeetleHead"]
+	local headTurn: CFrame? = nil
+	if headBase then
+		local headPivot = headBase.Position
+		headTurn = CFrame.new(headPivot) * CFrame.Angles(math.sin(now * 1.5 + mon.animSeed) * 0.04, mon.lookYaw + idle * 0.08, 0) * CFrame.new(-headPivot)
+	end
+
+	for name, part in mon.parts do
+		local base = mon.baseCFrames[name]
+		local cf = base
+
+		if name:find("Leg") or name:find("Foot") or name:find("Paw") or name:find("Claw") or name:find("Hoof") then
+			local sign = getLimbSign(name)
+			local swing = walk * 0.45 * sign
+			-- Вращение вокруг верхнего сустава (плечо / бедро), чтобы конечность не крутилась вокруг своего центра
+			local jointY = part.Size.Y * 0.42
+			local jointPivot = Vector3.new(0, jointY, 0)
+			cf = base * CFrame.new(jointPivot) * CFrame.Angles(swing, 0, 0) * CFrame.new(-jointPivot)
+		elseif name:find("Arm") or name:find("Fist") then
+			local sign = getLimbSign(name)
+			-- Руки качаются в противофазе с ногами
+			local swing = -walk * 0.35 * sign + strike
+			local jointY = part.Size.Y * 0.42
+			local jointPivot = Vector3.new(0, jointY, 0)
+			cf = base * CFrame.new(jointPivot) * CFrame.Angles(swing, 0, 0) * CFrame.new(-jointPivot)
+		elseif name:find("Tail") then
+			-- Хвост виляет и покачивается
+			local tailPhase = now * 3.2 + mon.animSeed
+			cf = base * CFrame.Angles(math.sin(tailPhase) * 0.08, math.sin(tailPhase * 0.8) * 0.35, 0)
+		elseif name:find("Wing") then
+			-- Взмахи крыльев
+			local wingSpeed = moving and 18 or 10
+			cf = base * CFrame.Angles(0, 0, math.sin(now * wingSpeed + mon.animSeed) * 0.42)
+		elseif name:find("Tentacle") then
+			cf = base * CFrame.Angles(math.sin(now * 2.8 + mon.animSeed) * 0.22, 0, math.cos(now * 2.4 + mon.animSeed) * 0.22)
+		elseif name:find("Antenna") or name:find("Whisker") or name:find("Tendril") then
+			cf = base * CFrame.Angles(0, math.sin(now * 2.8 + mon.animSeed) * 0.2, 0)
+		elseif name == "Jaw" then
+			local open = windup * 0.42
+			local jaw = base * CFrame.Angles(open, 0, 0)
+			cf = headTurn and (headTurn * jaw) or jaw
+		elseif headTurn and isHeadPart(name) then
+			cf = headTurn * base
+		elseif name == "Body" or name == "Chest" or name == "Belly" or name == "BackArch" or name:find("Mane") or name:find("Tuft") then
+			-- Покачивание тела при ходьбе + дыхание
+			local bodyBob = moving and (walkDouble * 0.12) or (idle * 0.07)
+			local bodyRoll = moving and (walk * 0.04) or 0
+			cf = base * CFrame.new(0, bodyBob, 0) * CFrame.Angles(0, 0, bodyRoll)
+		elseif name:find("Bubble") then
+			cf = base * CFrame.new(0, idle * 0.22, 0)
+		end
+
+		part.CFrame = pivot * cf
+	end
+
+	local winding = now < mon.windupUntil
+	mon.highlight.OutlineTransparency = winding and 0.35 or 1
+	mon.highlight.FillTransparency = if now < mon.flashUntil then 0.35 elseif winding then 0.85 else 1
 end
 
 local function register(mon: Mon)
@@ -185,21 +345,32 @@ local function spawnMonster(key: string, position: Vector3, leader: Mon?, option
 	if opts.groundY then
 		position = Vector3.new(position.X, opts.groundY, position.Z)
 	end
-	local model, root, fill = buildModel(def, key)
+	local model, root, fill, parts, baseCFrames, highlight = buildModel(def, key)
 	nextId += 1
 	model:SetAttribute("MonsterId", nextId)
+	local heading = rng:NextNumber(0, math.pi * 2)
 	local mon: Mon = {
 		key = key,
 		def = def,
 		model = model,
 		root = root,
 		bar = fill,
+		parts = parts,
+		baseCFrames = baseCFrames,
+		highlight = highlight,
+		animSeed = rng:NextNumber(0, math.pi * 2),
+		movingUntil = 0,
+		windupUntil = 0,
+		windupTarget = nil,
+		flashUntil = 0,
 		hp = maxHp,
 		maxHp = maxHp,
 		alive = true,
 		home = position,
 		position = position,
-		heading = rng:NextNumber(0, math.pi * 2),
+		heading = heading,
+		visualHeading = heading,
+		lookYaw = 0,
 		target = nil,
 		targetUntil = 0,
 		nextAttack = 0,
@@ -253,11 +424,53 @@ local function remove(mon: Mon)
 	for _, descendant in mon.model:GetDescendants() do
 		byPart[descendant] = nil
 	end
-	mon.model:Destroy()
 	local index = table.find(active, mon)
 	if index then
 		table.remove(active, index)
 	end
+	if mon.bar.Parent then
+		mon.bar.Parent.Visible = false
+	end
+
+	-- Растворение модели и облачко частиц вместо мгновенного исчезновения
+	local model = mon.model
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			TweenService:Create(
+				descendant,
+				TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Transparency = 1, Size = descendant.Size * 0.7 }
+			):Play()
+		end
+	end
+	local tint = mon.def.parts[1] and mon.def.parts[1].color or Color3.fromRGB(255, 255, 255)
+	local burst = Instance.new("Part")
+	burst.Name = "MonsterBurst"
+	burst.Size = Vector3.new(1, 1, 1)
+	burst.Transparency = 1
+	burst.Anchored = true
+	burst.CanCollide = false
+	burst.CanQuery = false
+	burst.CFrame = CFrame.new(mon.position + Vector3.new(0, 3, 0))
+	burst.Parent = folder
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(tint)
+	emitter.Lifetime = NumberRange.new(0.35, 0.7)
+	emitter.Speed = NumberRange.new(8, 16)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Rate = 0
+	emitter.Size = NumberSequence.new(0.5)
+	emitter.LightEmission = 0.25
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.15),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.Parent = burst
+	emitter:Emit(20)
+	Debris:AddItem(burst, 1)
+	Debris:AddItem(model, 0.45)
 end
 
 local setBar
@@ -445,6 +658,7 @@ function MonsterService.hit(player: Player, part: BasePart, baseDamage: number):
 	end
 	local def = mon.def
 	local now = os.clock()
+	mon.flashUntil = now + 0.12
 
 	if not tutored[player] then
 		tutored[player] = true
@@ -593,17 +807,20 @@ local function step(mon: Mon, direction: Vector3, speed: number, dt: number)
 	end
 	mon.position = nextPos
 	mon.heading = math.atan2(-unit.X, -unit.Z)
+	mon.movingUntil = os.clock() + 0.15
 	place(mon, math.abs(math.sin(os.clock() * 9 + mon.heading)) * 0.45) -- «шаг»: лёгкое подпрыгивание при ходьбе
 end
 
 local function wander(mon: Mon, dt: number, now: number)
-	if not mon.wanderTo or now > mon.wanderAt then
+	local target = mon.wanderTo
+	if not target or now > mon.wanderAt then
 		local angle = rng:NextNumber(0, math.pi * 2)
 		local radius = rng:NextNumber(5, 30)
-		mon.wanderTo = mon.home + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+		target = mon.home + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+		mon.wanderTo = target
 		mon.wanderAt = now + rng:NextNumber(3, 7)
 	end
-	local delta = mon.wanderTo - mon.position
+	local delta = target - mon.position
 	if delta.Magnitude > 2 then
 		step(mon, delta, mon.def.speed * 0.3, dt)
 	end
@@ -690,17 +907,34 @@ local function tickMonster(mon: Mon, dt: number, now: number)
 	if now < mon.blindUntil then
 		target = nil
 	end
+	if not target and mon.windupUntil > 0 then
+		mon.windupUntil = 0 -- цель пропала: замах отменяется
+		mon.windupTarget = nil
+	end
 
 	if target then
 		local root, humanoid = characterRoot(target)
 		if root and humanoid then
 			local delta = root.Position - mon.position
 			local distance = Vector3.new(delta.X, 0, delta.Z).Magnitude
+			if mon.windupUntil > 0 then
+				if now >= mon.windupUntil then
+					mon.windupUntil = 0
+					local windTarget = mon.windupTarget or target
+					mon.windupTarget = nil
+					local windRoot, windHumanoid = characterRoot(windTarget)
+					if windRoot and windHumanoid and (windRoot.Position - mon.position).Magnitude <= 7 then
+						windHumanoid:TakeDamage(def.damage * Status.damageTakenFactor(windTarget))
+					end
+				end
+				return
+			end
 			if distance > 5.5 then
 				step(mon, delta, def.speed, dt)
 			elseif now >= mon.nextAttack then
 				mon.nextAttack = now + BODY_ATTACK_COOLDOWN
-				humanoid:TakeDamage(def.damage * Status.damageTakenFactor(target))
+				mon.windupUntil = now + 0.35
+				mon.windupTarget = target
 			end
 			return
 		end
@@ -721,6 +955,8 @@ function MonsterService.freezeNear(origin: Vector3, range: number, seconds: numb
 	for _, mon in active do
 		if (mon.position - origin).Magnitude <= range then
 			mon.frozenUntil = until_
+			mon.windupUntil = 0
+			mon.windupTarget = nil
 		end
 	end
 end
@@ -731,6 +967,8 @@ function MonsterService.blindNear(origin: Vector3, range: number, seconds: numbe
 		if (mon.position - origin).Magnitude <= range then
 			mon.blindUntil = until_
 			mon.target = nil
+			mon.windupUntil = 0
+			mon.windupTarget = nil
 		end
 	end
 end
@@ -789,6 +1027,7 @@ function MonsterService.start()
 			local mon = active[index]
 			if mon and mon.alive then
 				tickMonster(mon, elapsed, now)
+				animate(mon, now)
 			end
 		end
 	end)

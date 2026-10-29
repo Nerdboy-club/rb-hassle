@@ -23,7 +23,7 @@ local KIND_COLORS = {
 	warn = Theme.warn,
 }
 
-function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
+function Hud.create(screen: ScreenGui, actions: { [string]: (...any) -> () })
 	-- корень HUD: масштабируется под экран (телефон), панели книги/лавки/диалога масштабируют себя сами
 	local gui = Instance.new("Frame")
 	gui.Name = "HudRoot"
@@ -270,7 +270,10 @@ function Hud.create(screen: ScreenGui, actions: { [string]: () -> () })
 			end
 		end
 		while #shown > 4 do
-			table.remove(shown, 1):Destroy()
+			local old = table.remove(shown, 1)
+			if old then
+				old:Destroy()
+			end
 		end
 		task.delay(5, function()
 			if toast.Parent then
